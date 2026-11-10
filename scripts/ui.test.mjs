@@ -51,7 +51,7 @@ const { render, screen, cleanup, waitFor } = await import("@testing-library/reac
 const userEvent = (await import("@testing-library/user-event")).default;
 const { OrbGrid } = await import("../src/components/OrbGrid.tsx");
 const { Toolbar } = await import("../src/components/Toolbar.tsx");
-const { DetailOverlay } = await import("../src/components/DetailOverlay.tsx");
+const { DetailOverlay, anchoredCard } = await import("../src/components/DetailOverlay.tsx");
 const { SOFTWARE, CATEGORIES } = await import("../src/catalog.ts");
 
 afterEach(() => {
@@ -117,15 +117,46 @@ test("detail card morphs from the orb, explains the disabled phase-one state and
   const item = SOFTWARE.find(entry => entry.id === "git");
   render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => { closed += 1; } }));
   const dialog = await screen.findByRole("dialog", { name: "Git 详情" });
-  await waitFor(() => assert.equal(dialog.style.width, "720px"));
-  assert.equal(dialog.style.borderRadius, "28px");
+  await waitFor(() => assert.equal(dialog.style.width, "380px"));
+  assert.equal(dialog.style.borderRadius, "24px");
+  assert.equal(dialog.style.left, "16px");
+  assert.equal(dialog.style.top, "16px");
+  assert.equal(document.querySelector(".detail-backdrop"), null);
+  assert.ok(document.querySelector(".detail-catcher"));
   assert.match(dialog.textContent, /尚未检测/);
-  assert.match(dialog.textContent, /不会修改系统或旧版 DevHub/);
+  assert.match(dialog.textContent, /不会安装、卸载或修改系统/);
+  assert.equal(dialog.textContent.includes("安装路径"), false);
+  assert.deepEqual([...dialog.querySelectorAll(".detail-block h3")].map(node => node.textContent), ["已安装版本", "可安装版本", "安装来源"]);
   assert.equal(screen.getByRole("button", { name: /安装/ }).disabled, true);
   assert.equal(screen.getByRole("button", { name: "卸载" }).disabled, true);
   assert.equal(screen.getByRole("combobox", { name: "选择版本" }).disabled, true);
   await userEvent.setup().keyboard("{Escape}");
+  await waitFor(() => assert.equal(dialog.style.width, "90px"));
   await waitFor(() => assert.equal(closed, 1), { timeout: 2000 });
+});
+
+test("anchored geometry keeps the orb as a corner and stays inside the viewport", () => {
+  // A card taller than the space below is capped to that space; the orb stays at the top-left corner.
+  const upper = anchoredCard({ left: 52, top: 236, width: 123, height: 123 }, 380, 569, 1200, 713);
+  assert.equal(upper.left, 52);
+  assert.equal(upper.top, 128);
+  assert.equal(upper.width, 380);
+  assert.equal(upper.height, 569);
+  assert.ok(upper.top + upper.height <= 713 - 16);
+
+  // A card near the bottom-right grows up and left; its bottom/right corner is the orb.
+  const lower = anchoredCard({ left: 900, top: 650, width: 90, height: 90 }, 380, 360, 1024, 768);
+  assert.equal(lower.left, 610);
+  assert.equal(lower.top, 380);
+  assert.equal(lower.left + lower.width, 990);
+  assert.equal(lower.top + lower.height, 740);
+
+  // A card near the top-right grows down, anchored at its top-right corner.
+  const right = anchoredCard({ left: 885, top: 236, width: 123, height: 123 }, 380, 550, 1200, 713);
+  assert.equal(right.left, 628);
+  assert.equal(right.top, 147);
+  assert.equal(right.left + right.width, 1008);
+  assert.ok(right.top + right.height <= 713 - 16);
 });
 
 test("reduced motion opens the card at its final geometry and closes without waiting", async () => {
@@ -134,7 +165,7 @@ test("reduced motion opens the card at its final geometry and closes without wai
   const item = SOFTWARE.find(entry => entry.id === "node");
   render(React.createElement(DetailOverlay, { item, origin: { left: 0, top: 0, width: 80, height: 80 }, onClose: () => { closed += 1; } }));
   const dialog = await screen.findByRole("dialog", { name: "Node.js 详情" });
-  assert.equal(dialog.style.width, "720px");
+  assert.equal(dialog.style.width, "380px");
   await userEvent.setup().keyboard("{Escape}");
   await waitFor(() => assert.equal(closed, 1));
 });
