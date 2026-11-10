@@ -1,0 +1,410 @@
+   Compiling devhub-v2 v0.1.0 (/Users/yujian/Documents/DevHubV2/src-tauri)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.63s
+     Running unittests src/lib.rs (target/debug/deps/devhub_v2_lib-16beedde316f62e1)
+
+running 1 test
+### git
+{
+  "softwareId": "git",
+  "versions": [
+    {
+      "version": "2.56.0",
+      "installed": false,
+      "installable": true,
+      "canUninstall": false,
+      "methods": [
+        "homebrew"
+      ],
+      "formula": "git",
+      "instances": [],
+      "reason": "安装时可能拉取依赖"
+    },
+    {
+      "version": "2.50.1",
+      "installed": true,
+      "installable": false,
+      "canUninstall": false,
+      "methods": [],
+      "formula": null,
+      "instances": [
+        {
+          "source": "path",
+          "path": "/usr/bin/git",
+          "health": "ok",
+          "managedBy": "system"
+        }
+      ],
+      "reason": null
+    }
+  ],
+  "error": null,
+  "homebrewAvailable": true
+}
+### go
+{
+  "softwareId": "go",
+  "versions": [
+    {
+      "version": "1.27.3",
+      "installed": false,
+      "installable": true,
+      "canUninstall": false,
+      "methods": [
+        "homebrew"
+      ],
+      "formula": "go",
+      "instances": [],
+      "reason": null
+    }
+  ],
+  "error": null,
+  "homebrewAvailable": true
+}
+### maven
+{
+  "softwareId": "maven",
+  "versions": [
+    {
+      "version": "3.10.0",
+      "installed": false,
+      "installable": true,
+      "canUninstall": false,
+      "methods": [
+        "homebrew"
+      ],
+      "formula": "maven",
+      "instances": [],
+      "reason": "安装时可能拉取依赖"
+    },
+    {
+      "version": "3.9.16",
+      "installed": true,
+      "installable": false,
+      "canUninstall": false,
+      "methods": [],
+      "formula": null,
+      "instances": [
+        {
+          "source": "path",
+          "path": "/usr/local/maven/bin/mvn",
+          "health": "ok",
+          "managedBy": "system"
+        }
+      ],
+      "reason": null
+    }
+  ],
+  "error": null,
+  "homebrewAvailable": true
+}
+### gradle
+{
+  "softwareId": "gradle",
+  "versions": [
+    {
+      "version": "9.8.2",
+      "installed": false,
+      "installable": true,
+      "canUninstall": false,
+      "methods": [
+        "homebrew"
+      ],
+      "formula": "gradle",
+      "instances": [],
+      "reason": "安装时可能拉取依赖"
+    }
+  ],
+  "error": null,
+  "homebrewAvailable": true
+}
+### node
+{
+  "softwareId": "node",
+  "versions": [
+    {
+      "version": "26.13.0",
+      "installed": true,
+      "installable": false,
+      "canUninstall": false,
+      "methods": [],
+      "formula": null,
+      "instances": [
+        {
+          "source": "path",
+          "path": "/usr/local/bin/node",
+          "health": "ok",
+          "managedBy": "system"
+        },
+        {
+          "source": "devhubV1",
+          "path": "/Users/yujian/Library/Application Support/com.yujian.devhub.validation/storage-v1/versions/node/26.13.0-arm64/bin/node",
+          "health": "ok",
+          "managedBy": "devhub"
+        }
+      ],
+      "reason": null
+    },
+    {
+      "version": "24.22.2",
+      "installed": false,
+      "installable": true,
+      "canUninstall": false,
+      "methods": [
+        "homebrew"
+      ],
+      "formula": "node@24",
+      "instances": [],
+      "reason": "安装时可能拉取依赖"
+    }
+  ],
+  "error": null,
+  "homebrewAvailable": true
+}
+### python
+{
+  "softwareId": "python",
+  "versions": [
+    {
+      "version": "3.14.10",
+      "installed": false,
+      "installable": true,
+      "canUninstall": false,
+      "methods": [
+        "homebrew"
+      ],
+      "formula": "python@3.14",
+      "instances": [],
+      "reason": "安装时可能拉取依赖"
+    },
+    {
+      "version": "3.14.6",
+      "installed": true,
+      "installable": false,
+      "canUninstall": false,
+      "methods": [],
+      "formula": null,
+      "instances": [
+        {
+          "source": "path",
+          "path": "/opt/anaconda3/bin/python3",
+          "health": "ok",
+          "managedBy": "system"
+        },
+        {
+          "source": "path",
+          "path": "/Library/Frameworks/Python.framework/Versions/3.14/bin/python3",
+          "health": "ok",
+          "managedBy": "system"
+        }
+      ],
+      "reason": null
+    },
+    {
+      "version": "3.13.18",
+      "installed": false,
+      "installable": true,
+      "canUninstall": false,
+      "methods": [
+        "homebrew"
+      ],
+      "formula": "python@3.13",
+      "instances": [],
+      "reason": "安装时可能拉取依赖"
+    },
+    {
+      "version": "3.12.16",
+      "installed": false,
+      "installable": true,
+      "canUninstall": false,
+      "methods": [
+        "homebrew"
+      ],
+      "formula": "python@3.12",
+      "instances": [],
+      "reason": "安装时可能拉取依赖"
+    },
+    {
+      "version": "3.9.6",
+      "installed": true,
+      "installable": false,
+      "canUninstall": false,
+      "methods": [],
+      "formula": null,
+      "instances": [
+        {
+          "source": "path",
+          "path": "/usr/bin/python3",
+          "health": "ok",
+          "managedBy": "system"
+        }
+      ],
+      "reason": null
+    }
+  ],
+  "error": null,
+  "homebrewAvailable": true
+}
+### jdk
+{
+  "softwareId": "jdk",
+  "versions": [
+    {
+      "version": "27.0.1.0.3",
+      "installed": false,
+      "installable": true,
+      "canUninstall": false,
+      "methods": [
+        "homebrew"
+      ],
+      "formula": "openjdk",
+      "instances": [],
+      "reason": "安装时可能拉取依赖"
+    },
+    {
+      "version": "26",
+      "installed": true,
+      "installable": false,
+      "canUninstall": false,
+      "methods": [],
+      "formula": null,
+      "instances": [
+        {
+          "source": "path",
+          "path": "/Users/yujian/Library/Java/JavaVirtualMachines/openjdk-26/Contents/Home/bin/java",
+          "health": "ok",
+          "managedBy": "system"
+        },
+        {
+          "source": "path",
+          "path": "/Library/Java/JavaVirtualMachines/jdk-26.jdk/Contents/Home/bin/java",
+          "health": "ok",
+          "managedBy": "system"
+        }
+      ],
+      "reason": null
+    },
+    {
+      "version": "21.0.13.0.3",
+      "installed": false,
+      "installable": true,
+      "canUninstall": false,
+      "methods": [
+        "homebrew"
+      ],
+      "formula": "openjdk@21",
+      "instances": [],
+      "reason": "安装时可能拉取依赖"
+    },
+    {
+      "version": "21.0.13.0.2",
+      "installed": true,
+      "installable": false,
+      "canUninstall": false,
+      "methods": [],
+      "formula": null,
+      "instances": [
+        {
+          "source": "path",
+          "path": "/Users/yujian/Library/Java/JavaVirtualMachines/ms-21.0.13.0.2/Contents/Home/bin/java",
+          "health": "ok",
+          "managedBy": "system"
+        }
+      ],
+      "reason": null
+    },
+    {
+      "version": "17.0.21.0.3",
+      "installed": false,
+      "installable": true,
+      "canUninstall": false,
+      "methods": [
+        "homebrew"
+      ],
+      "formula": "openjdk@17",
+      "instances": [],
+      "reason": "安装时可能拉取依赖"
+    },
+    {
+      "version": "17.0.19",
+      "installed": true,
+      "installable": false,
+      "canUninstall": false,
+      "methods": [],
+      "formula": null,
+      "instances": [
+        {
+          "source": "path",
+          "path": "/Users/yujian/Library/Java/JavaVirtualMachines/ms-17.0.19/Contents/Home/bin/java",
+          "health": "ok",
+          "managedBy": "system"
+        }
+      ],
+      "reason": null
+    },
+    {
+      "version": "17.0.14",
+      "installed": true,
+      "installable": false,
+      "canUninstall": false,
+      "methods": [],
+      "formula": null,
+      "instances": [
+        {
+          "source": "path",
+          "path": "/Users/yujian/Library/Java/JavaVirtualMachines/jbr-17.0.14/Contents/Home/bin/java",
+          "health": "ok",
+          "managedBy": "system"
+        }
+      ],
+      "reason": null
+    },
+    {
+      "version": "17.0.2",
+      "installed": true,
+      "installable": false,
+      "canUninstall": false,
+      "methods": [],
+      "formula": null,
+      "instances": [
+        {
+          "source": "path",
+          "path": "/Users/yujian/jdk-17.0.2.jdk/Contents/Home/bin/java",
+          "health": "ok",
+          "managedBy": "system"
+        }
+      ],
+      "reason": null
+    }
+  ],
+  "error": null,
+  "homebrewAvailable": true
+}
+### rust
+{
+  "softwareId": "rust",
+  "versions": [
+    {
+      "version": "1.99.1",
+      "installed": true,
+      "installable": false,
+      "canUninstall": false,
+      "methods": [],
+      "formula": null,
+      "instances": [
+        {
+          "source": "path",
+          "path": "/Users/yujian/.cargo/bin/rustc",
+          "health": "ok",
+          "managedBy": "system"
+        }
+      ],
+      "reason": null
+    }
+  ],
+  "error": null,
+  "homebrewAvailable": true
+}
+test versions::tests::live_version_catalogs ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 12.84s
+

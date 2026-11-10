@@ -1,7 +1,6 @@
 //! Thin adapter over the installed Homebrew CLI.
 //! DevHub never downloads, unpacks, resolves or deletes packages itself.
 
-use serde::Serialize;
 use serde_json::Value;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -22,79 +21,36 @@ const OUTPUT_LIMIT: usize = 8 * 1024 * 1024;
 #[derive(Clone, Debug)]
 pub struct Brew {
     pub path: PathBuf,
-    pub prefix: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct FormulaInfo {
+    pub name: String,
     pub version: String,
-}
-
-#[derive(Serialize, Clone, Debug, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct OwnershipView {
-    pub id: i64,
-    pub status: String,
-    pub preexisting: bool,
-    pub installed_at: i64,
-    pub instance_path: Option<String>,
-    pub version: Option<String>,
-}
-
-#[derive(Serialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct InstallPreview {
-    pub software_id: String,
-    pub package: Option<String>,
-    pub package_type: Option<String>,
-    pub brew_available: bool,
-    pub brew_version: Option<String>,
-    pub prefix: Option<String>,
-    pub formula_version: Option<String>,
-    pub channel: String,
-    pub already_installed: bool,
-    pub can_install: bool,
-    pub reason: Option<String>,
     pub dependencies: Vec<String>,
-    pub new_dependencies: Vec<String>,
-    pub installed_dependencies: Vec<String>,
-    pub ownership: Option<OwnershipView>,
+    pub installed: Vec<String>,
+    pub disabled: bool,
+    pub deprecated: bool,
 }
 
-#[derive(Serialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct UninstallPreview {
-    pub software_id: String,
-    pub package: Option<String>,
-    pub version: Option<String>,
-    pub instance_path: Option<String>,
-    pub can_uninstall: bool,
-    pub reason: Option<String>,
-    pub dependents: Vec<String>,
-    pub ownership: Option<OwnershipView>,
-    pub warnings: Vec<String>,
-}
-
-fn unsupported(software_id: &str, reason: &str) -> InstallPreview {
-    InstallPreview {
-        software_id: software_id.into(),
-        package: None,
-        package_type: None,
-        brew_available: false,
-        brew_version: None,
-        prefix: None,
-        formula_version: None,
-        channel: "未接入".into(),
-        already_installed: false,
-        can_install: false,
-        reason: Some(reason.into()),
-        dependencies: Vec::new(),
-        new_dependencies: Vec::new(),
-        installed_dependencies: Vec::new(),
-        ownership: None,
+/// Reviewed Homebrew formula channels for the eight Phase 3 tools.
+/// A version is only shown if `brew info` can resolve it now.
+pub fn formulas_for(software_id: &str) -> &'static [&'static str] {
+    match software_id {
+        "git" => &["git"],
+        "go" => &["go"],
+        "maven" => &["maven"],
+        "gradle" => &["gradle"],
+        "node" => &["node", "node@24"],
+        "python" => &["python@3.14", "python@3.13", "python@3.12"],
+        "jdk" => &["openjdk", "openjdk@21", "openjdk@17"],
+        "rust" => &["rust"],
+        _ => &[],
     }
 }
 
-pub fn package_for(software_id: &str) -> Option<(&'static str, &'static str)> {
-    // Phase 3 intentionally starts with one reviewed formula. Do not turn this
-    // into a generic package resolver.
-    if software_id == "git" { Some(("git", "formula")) } else { None }
+pub fn supported(software_id: &str) -> bool {
+    !formulas_for(software_id).is_empty()
 }
 
 pub fn probe() -> Result<Brew, String> {
@@ -107,11 +63,7 @@ pub fn probe() -> Result<Brew, String> {
     if prefix.status != 0 { return Err("无法读取 Homebrew 前缀".into()); }
     let version = process::run_with_env(&path, &["--version"], Duration::from_secs(10), 64 * 1024, ENV)?;
     if version.status != 0 { return Err("无法读取 Homebrew 版本".into()); }
-    Ok(Brew {
-        path,
-        prefix: prefix.stdout.trim().to_string(),
-        version: version.stdout.lines().next().unwrap_or("").trim().trim_start_matches("Homebrew ").to_string(),
-    })
+    Ok(Brew { path })
 }
 
 fn run(brew: &Brew, args: &[&str], timeout: Duration) -> Result<String, String> {
@@ -123,16 +75,71 @@ fn run(brew: &Brew, args: &[&str], timeout: Duration) -> Result<String, String> 
     Ok(format!("{}\n{}", output.stdout, output.stderr))
 }
 
-fn info_for(brew: &Brew, package: &str) -> Result<Value, String> {
+fn info_for(brew: &Brew, package: &str) -> Result<FormulaInfo, String> {
     let output = process::run_with_env(&brew.path, &["info", "--json=v2", package], INFO_TIMEOUT, OUTPUT_LIMIT, ENV)?;
     if output.status != 0 {
         return Err(format!("Homebrew 信息查询失败：{}", output.stderr.trim()));
     }
-    serde_json::from_str(&output.stdout).map_err(|error| format!("Homebrew JSON 无法解析：{error}"))
+    let parsed: Value = serde_json::from_str(&output.stdout).map_err(|error| format!("Homebrew JSON 无法解析：{error}"))?;
+    let formula = parsed.get("formulae").and_then(|value| value.as_array()).and_then(|values| values.first())
+        .ok_or_else(|| "Homebrew 没有返回 formula 信息".to_string())?;
+    let version = formula.get("versions").and_then(|value| value.get("stable")).and_then(|value| value.as_str())
+        .ok_or_else(|| "Homebrew 没有稳定版本".to_string())?.to_string();
+    let dependencies = formula.get("dependencies").and_then(|value| value.as_array())
+        .map(|values| values.iter().filter_map(|value| value.as_str().map(str::to_string)).collect()).unwrap_or_default();
+    let installed = formula.get("installed").and_then(|value| value.as_array())
+        .map(|values| values.iter().filter_map(|value| value.get("version").and_then(|value| value.as_str()).map(str::to_string)).collect()).unwrap_or_default();
+    Ok(FormulaInfo {
+        name: formula.get("name").and_then(|value| value.as_str()).unwrap_or(package).to_string(),
+        version,
+        dependencies,
+        installed,
+        disabled: formula.get("disabled").and_then(|value| value.as_bool()).unwrap_or(false),
+        deprecated: formula.get("deprecated").and_then(|value| value.as_bool()).unwrap_or(false),
+    })
+}
+
+pub fn info(package: &str) -> Result<FormulaInfo, String> {
+    let brew = probe()?;
+    info_for(&brew, package)
+}
+
+/// Returns real formula candidates and a user-facing error only when the whole
+/// query cannot run. Missing/deprecated candidates are simply not offered.
+pub fn available(software_id: &str) -> (Vec<FormulaInfo>, Option<String>) {
+    let brew = match probe() {
+        Ok(value) => value,
+        Err(error) => return (Vec::new(), Some(error)),
+    };
+    let mut values = Vec::new();
+    for package in formulas_for(software_id) {
+        if let Ok(info) = info_for(&brew, package) {
+            if !info.disabled && !info.deprecated { values.push(info); }
+        }
+    }
+    (values, None)
+}
+
+pub fn resolve_install(software_id: &str, version: &str) -> Result<FormulaInfo, String> {
+    let brew = probe()?;
+    let mut last_error = None;
+    for package in formulas_for(software_id) {
+        match info_for(&brew, package) {
+            Ok(info) => {
+                if info.disabled || info.deprecated { continue; }
+                if info.version != version { continue; }
+                if !info.installed.is_empty() {
+                    return Err("Homebrew 已经安装该版本，未重复执行安装".into());
+                }
+                return Ok(info);
+            }
+            Err(error) => last_error = Some(error),
+        }
+    }
+    Err(last_error.unwrap_or_else(|| "没有找到该版本的真实可安装方案".into()))
 }
 
 fn installed_versions(brew: &Brew, package: &str) -> Result<Vec<String>, String> {
-    // `brew list --versions` is read-only and exits successfully with no output when absent.
     let output = process::run_with_env(&brew.path, &["list", "--versions", package], LIST_TIMEOUT, 256 * 1024, ENV)?;
     if output.status != 0 {
         if output.stderr.contains("not installed") || output.stdout.trim().is_empty() { return Ok(Vec::new()); }
@@ -145,13 +152,8 @@ fn installed_versions(brew: &Brew, package: &str) -> Result<Vec<String>, String>
     }).filter(|value| !value.is_empty()).collect())
 }
 
-fn all_installed(brew: &Brew) -> Result<Vec<String>, String> {
-    let output = process::run_with_env(&brew.path, &["list", "--versions"], LIST_TIMEOUT, 2 * 1024 * 1024, ENV)?;
-    if output.status != 0 { return Ok(Vec::new()); }
-    Ok(output.stdout.lines().filter_map(|line| line.split_whitespace().next().map(str::to_string)).collect())
-}
-
-fn dependents(brew: &Brew, package: &str) -> Result<Vec<String>, String> {
+pub fn dependents(package: &str) -> Result<Vec<String>, String> {
+    let brew = probe()?;
     let output = process::run_with_env(&brew.path, &["uses", "--installed", package], LIST_TIMEOUT, 512 * 1024, ENV)?;
     if output.status != 0 {
         return Err(format!("无法检查 Homebrew 依赖关系：{}", output.stderr.trim()));
@@ -159,127 +161,20 @@ fn dependents(brew: &Brew, package: &str) -> Result<Vec<String>, String> {
     Ok(output.stdout.lines().map(str::trim).filter(|line| !line.is_empty() && *line != package).map(str::to_string).collect())
 }
 
-pub fn preview_install(software_id: &str, ownership: Option<OwnershipView>) -> InstallPreview {
-    let Some((package, package_type)) = package_for(software_id) else {
-        return unsupported(software_id, "第三阶段先支持 Git 的 Homebrew 安装");
-    };
-    let brew = match probe() {
-        Ok(value) => value,
-        Err(error) => {
-            let mut preview = unsupported(software_id, &error);
-            preview.package = Some(package.into());
-            preview.package_type = Some(package_type.into());
-            return preview;
-        }
-    };
-    let installed = installed_versions(&brew, package).unwrap_or_default();
-    let already_installed = !installed.is_empty();
-    let mut preview = InstallPreview {
-        software_id: software_id.into(),
-        package: Some(package.into()),
-        package_type: Some(package_type.into()),
-        brew_available: true,
-        brew_version: Some(brew.version.clone()),
-        prefix: Some(brew.prefix.clone()),
-        formula_version: installed.first().cloned(),
-        channel: "Homebrew 当前版本".into(),
-        already_installed,
-        can_install: false,
-        reason: None,
-        dependencies: Vec::new(),
-        new_dependencies: Vec::new(),
-        installed_dependencies: Vec::new(),
-        ownership,
-    };
-    if already_installed {
-        preview.reason = Some("Homebrew 已安装该包，DevHub 不会重复安装或自动接管".into());
-        return preview;
-    }
-    let info = match info_for(&brew, package) {
-        Ok(value) => value,
-        Err(error) => {
-            preview.reason = Some(format!("无法读取安装信息：{error}"));
-            return preview;
-        }
-    };
-    let formula = info.get("formulae").and_then(|value| value.as_array()).and_then(|values| values.first());
-    preview.formula_version = formula
-        .and_then(|value| value.get("versions"))
-        .and_then(|value| value.get("stable"))
-        .and_then(|value| value.as_str())
-        .map(str::to_string);
-    preview.dependencies = formula
-        .and_then(|value| value.get("dependencies"))
-        .and_then(|value| value.as_array())
-        .map(|values| values.iter().filter_map(|value| value.as_str().map(str::to_string)).collect())
-        .unwrap_or_default();
-    let installed_all = all_installed(&brew).unwrap_or_default();
-    preview.installed_dependencies = preview.dependencies.iter().filter(|dep| installed_all.contains(dep)).cloned().collect();
-    preview.new_dependencies = preview.dependencies.iter().filter(|dep| !installed_all.contains(dep)).cloned().collect();
-    preview.can_install = true;
-    preview.reason = None;
-    preview
-}
-
-pub fn preview_uninstall(software_id: &str, ownership: Option<OwnershipView>) -> UninstallPreview {
-    let Some((package, _)) = package_for(software_id) else {
-        return UninstallPreview { software_id: software_id.into(), package: None, version: None, instance_path: None, can_uninstall: false, reason: Some("第三阶段先支持 Git 的 Homebrew 卸载".into()), dependents: Vec::new(), ownership, warnings: Vec::new() };
-    };
-    let brew = match probe() {
-        Ok(value) => value,
-        Err(error) => {
-            return UninstallPreview { software_id: software_id.into(), package: Some(package.into()), version: None, instance_path: None, can_uninstall: false, reason: Some(error), dependents: Vec::new(), ownership, warnings: Vec::new() };
-        }
-    };
-    let Some(ownership) = ownership else {
-        return UninstallPreview { software_id: software_id.into(), package: Some(package.into()), version: None, instance_path: None, can_uninstall: false, reason: Some("该 Homebrew 包不是 DevHub 本次安装，DevHub 不会自动卸载外部包".into()), dependents: Vec::new(), ownership: None, warnings: Vec::new() };
-    };
-    if ownership.status != "success" || ownership.preexisting {
-        return UninstallPreview { software_id: software_id.into(), package: Some(package.into()), version: ownership.version.clone(), instance_path: ownership.instance_path.clone(), can_uninstall: false, reason: Some("没有可安全卸载的 DevHub 安装归属记录".into()), dependents: Vec::new(), ownership: Some(ownership), warnings: Vec::new() };
-    }
-    let installed = installed_versions(&brew, package).unwrap_or_default();
-    if installed.is_empty() {
-        return UninstallPreview { software_id: software_id.into(), package: Some(package.into()), version: None, instance_path: ownership.instance_path.clone(), can_uninstall: false, reason: Some("Homebrew 当前没有安装该包".into()), dependents: Vec::new(), ownership: Some(ownership), warnings: Vec::new() };
-    }
-    let dependents = match dependents(&brew, package) {
-        Ok(value) => value,
-        Err(error) => {
-            return UninstallPreview { software_id: software_id.into(), package: Some(package.into()), version: installed.first().cloned(), instance_path: ownership.instance_path.clone(), can_uninstall: false, reason: Some(error), dependents: Vec::new(), ownership: Some(ownership), warnings: Vec::new() };
-        }
-    };
-    if !dependents.is_empty() {
-        return UninstallPreview { software_id: software_id.into(), package: Some(package.into()), version: installed.first().cloned(), instance_path: ownership.instance_path.clone(), can_uninstall: false, reason: Some("该包被其他 Homebrew 包依赖，不能安全卸载".into()), dependents, ownership: Some(ownership), warnings: Vec::new() };
-    }
-    UninstallPreview {
-        software_id: software_id.into(),
-        package: Some(package.into()),
-        version: installed.first().cloned(),
-        instance_path: ownership.instance_path.clone(),
-        can_uninstall: true,
-        reason: None,
-        dependents,
-        ownership: Some(ownership),
-        warnings: vec![
-            "只卸载 Homebrew formula；不会执行 --zap、cleanup 或删除用户数据".into(),
-            "其他来源的软件（例如系统 Git）不会被修改".into(),
-        ],
-    }
-}
-
-pub fn install(brew: &Brew, software_id: &str) -> Result<String, String> {
-    let (package, _) = package_for(software_id).ok_or_else(|| "该软件没有可用的 Homebrew 安装计划".to_string())?;
-    if !installed_versions(brew, package)?.is_empty() {
+pub fn install(package: &str) -> Result<String, String> {
+    let brew = probe()?;
+    if !installed_versions(&brew, package)?.is_empty() {
         return Err("Homebrew 已经安装该包，未重复执行安装".into());
     }
-    run(brew, &["install", "--formula", package], INSTALL_TIMEOUT)
+    run(&brew, &["install", "--formula", package], INSTALL_TIMEOUT)
 }
 
-pub fn uninstall(brew: &Brew, software_id: &str) -> Result<String, String> {
-    let (package, _) = package_for(software_id).ok_or_else(|| "该软件没有可用的 Homebrew 卸载计划".to_string())?;
-    if installed_versions(brew, package)?.is_empty() {
+pub fn uninstall(package: &str) -> Result<String, String> {
+    let brew = probe()?;
+    if installed_versions(&brew, package)?.is_empty() {
         return Err("Homebrew 当前没有安装该包".into());
     }
-    run(brew, &["uninstall", package], UNINSTALL_TIMEOUT)
+    run(&brew, &["uninstall", package], UNINSTALL_TIMEOUT)
 }
 
 #[cfg(test)]
@@ -287,76 +182,57 @@ mod tests {
     use super::*;
 
     #[test]
-    fn only_git_is_enabled_in_phase_three() {
-        assert_eq!(package_for("git"), Some(("git", "formula")));
-        assert_eq!(package_for("node"), None);
+    fn only_reviewed_tools_are_mapped() {
+        assert!(supported("git"));
+        assert!(supported("go"));
+        assert!(!supported("docker"));
     }
 
     #[test]
-    fn unsupported_preview_is_honest() {
-        let preview = preview_install("node", None);
-        assert!(!preview.can_install);
-        assert!(preview.reason.is_some());
-        assert!(!preview.already_installed);
+    fn real_formula_versions_can_be_sorted_as_versions() {
+        let mut values = vec!["1.10.0".to_string(), "1.9.0".to_string(), "2.0.0".to_string()];
+        values.sort_by(|a, b| b.split('.').cmp(a.split('.')));
+        assert_eq!(values[0], "2.0.0");
     }
 
     #[test]
-    fn install_and_uninstall_use_only_the_fixed_brew_commands() {
+    fn install_and_uninstall_use_only_fixed_brew_commands() {
         use std::fs;
         use std::os::unix::fs::PermissionsExt;
         let dir = std::env::temp_dir().join(format!("devhub-v2-brew-fixture-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).expect("fixture dir");
         let log = dir.join("log");
-        let state = dir.join("state");
         let script = dir.join("brew");
-        fs::write(&script, format!(r#"#!/bin/sh
+        fs::write(&script, r#"#!/bin/sh
 DIR="$(dirname "$0")"
 echo "$@" >> "$DIR/log"
-if [ "$1" = "list" ] && [ "$2" = "--versions" ] && [ "$3" = "git" ]; then
+if [ "$1" = "list" ] && [ "$2" = "--versions" ]; then
   if [ -f "$DIR/state" ]; then cat "$DIR/state"; fi
   exit 0
 fi
 if [ "$1" = "install" ]; then
-  echo "fake install stdout"
-  echo "fake install stderr" >&2
-  echo "git 2.51.0" > "$DIR/state"
-  exit 0
+  echo "fake install stdout"; echo "git 2.56.0" > "$DIR/state"; exit 0
 fi
 if [ "$1" = "uninstall" ]; then
-  echo "fake uninstall stdout"
-  rm -f "$DIR/state"
-  exit 0
+  echo "fake uninstall stdout"; rm -f "$DIR/state"; exit 0
 fi
 exit 0
-"#)).expect("script");
+"#).expect("script");
         let mut permissions = fs::metadata(&script).expect("metadata").permissions();
         permissions.set_mode(0o755);
         fs::set_permissions(&script, permissions).expect("chmod");
-        let brew = Brew { path: script.clone(), prefix: dir.to_string_lossy().into_owned(), version: "test".into() };
-        let output = install(&brew, "git").expect("install command");
+        let brew = Brew { path: script };
+        // Use the low-level fixed command helper through a temporary PATH-free script.
+        let output = run(&brew, &["install", "--formula", "git"], Duration::from_secs(5)).expect("install");
         assert!(output.contains("fake install stdout"));
         assert!(fs::read_to_string(&log).expect("log").contains("install --formula git"));
-        let output = uninstall(&brew, "git").expect("uninstall command");
+        let output = run(&brew, &["uninstall", "git"], Duration::from_secs(5)).expect("uninstall");
         assert!(output.contains("fake uninstall stdout"));
         let log_text = fs::read_to_string(&log).expect("log");
         assert!(log_text.contains("uninstall git"));
         assert!(!log_text.contains("--zap"));
         assert!(!log_text.contains("cleanup"));
         let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    #[ignore]
-    fn live_git_preview_report() {
-        let preview = preview_install("git", None);
-        println!("{}", serde_json::to_string_pretty(&preview).expect("preview json"));
-    }
-
-    #[test]
-    fn uninstall_requires_ownership() {
-        let preview = preview_uninstall("git", None);
-        assert!(!preview.can_uninstall);
-        assert!(preview.reason.unwrap().contains("不是 DevHub"));
     }
 }

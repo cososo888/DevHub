@@ -149,6 +149,27 @@ pub fn mark_uninstalled(connection: &Connection, id: i64, now: i64) -> Result<()
     Ok(())
 }
 
+pub fn active_for_version(connection: &Connection, software_id: &str, version: &str) -> Option<OwnershipRecord> {
+    connection.query_row(
+        "SELECT id, software_id, package, package_type, status, preexisting, installed_at, uninstalled_at, instance_path, version, message
+         FROM install_ownership WHERE software_id = ?1 AND version = ?2 AND status = 'success' AND uninstalled_at IS NULL ORDER BY id DESC LIMIT 1",
+        params![software_id, version],
+        |row| Ok(OwnershipRecord {
+            id: row.get(0)?,
+            software_id: row.get(1)?,
+            package: row.get(2)?,
+            package_type: row.get(3)?,
+            status: row.get(4)?,
+            preexisting: row.get::<_, i64>(5)? != 0,
+            installed_at: row.get(6)?,
+            uninstalled_at: row.get(7)?,
+            instance_path: row.get(8)?,
+            version: row.get(9)?,
+            message: row.get(10)?,
+        }),
+    ).ok()
+}
+
 pub fn active_for(connection: &Connection, software_id: &str) -> Option<OwnershipRecord> {
     connection.query_row(
         "SELECT id, software_id, package, package_type, status, preexisting, installed_at, uninstalled_at, instance_path, version, message
@@ -170,15 +191,3 @@ pub fn active_for(connection: &Connection, software_id: &str) -> Option<Ownershi
     ).ok()
 }
 
-impl OwnershipRecord {
-    pub fn view(&self) -> crate::homebrew::OwnershipView {
-        crate::homebrew::OwnershipView {
-            id: self.id,
-            status: self.status.clone(),
-            preexisting: self.preexisting,
-            installed_at: self.installed_at,
-            instance_path: self.instance_path.clone(),
-            version: self.version.clone(),
-        }
-    }
-}

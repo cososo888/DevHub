@@ -365,3 +365,78 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 34px); letter-spacing: -1px; font-we
 .install-output summary { font-size: 10.5px; color: var(--muted); cursor: pointer; }
 .install-output pre { max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 7px; border-radius: 6px; background: color-mix(in srgb, var(--text) 5%, transparent); color: var(--muted); font-family: "SF Mono", ui-monospace, monospace; font-size: 9.5px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
 .install-output pre::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
+/* Phase 3 refinement: one shared morph shell, minimal version list */
+.orb.is-source { visibility: hidden; }
+
+.morph-card {
+  background: var(--orb-surface);
+  border-color: color-mix(in srgb, #fff 62%, var(--line));
+  box-shadow: var(--orb-shadow);
+  transition:
+    left .4s cubic-bezier(.22, 1, .36, 1),
+    top .4s cubic-bezier(.22, 1, .36, 1),
+    width .4s cubic-bezier(.22, 1, .36, 1),
+    height .4s cubic-bezier(.22, 1, .36, 1),
+    border-radius .4s cubic-bezier(.22, 1, .36, 1),
+    background-color .4s ease,
+    border-color .4s ease,
+    box-shadow .4s ease;
+}
+.morph-card::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background: radial-gradient(circle at 32% 22%, color-mix(in srgb, var(--orb-accent) 20%, transparent), transparent 66%);
+  opacity: 1; transition: opacity .35s ease;
+}
+.morph-card.open {
+  background: var(--card-bg);
+  border-color: var(--card-border);
+  box-shadow: var(--card-shadow);
+}
+.morph-card.open::before { opacity: 0; }
+.morph-card.closing {
+  transition-duration: .32s;
+  background: var(--orb-surface);
+  border-color: color-mix(in srgb, #fff 62%, var(--line));
+  box-shadow: var(--orb-shadow);
+}
+.morph-card.closing::before { opacity: 1; }
+.morph-logo {
+  position: absolute; z-index: 3; left: 50%; top: 50%; width: 52%; height: 52%;
+  transform: translate(-50%, -50%); display: grid; place-items: center; pointer-events: none;
+  transition: left .4s cubic-bezier(.22, 1, .36, 1), top .4s cubic-bezier(.22, 1, .36, 1),
+    width .4s cubic-bezier(.22, 1, .36, 1), height .4s cubic-bezier(.22, 1, .36, 1),
+    transform .4s cubic-bezier(.22, 1, .36, 1);
+}
+.morph-card.open .morph-logo { left: 22px; top: 22px; width: 44px; height: 44px; transform: none; }
+.morph-card.closing .morph-logo { transition-duration: .32s; }
+.morph-logo .software-logo { width: 100%; height: 100%; }
+.detail-head { display: block; min-height: 44px; padding: 0 28px 0 56px; }
+.detail-head h2 { margin: 0 0 3px; font-size: 22px; letter-spacing: -.5px; line-height: 1.15; }
+.detail-head p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.55; }
+.detail-inner { padding: 22px; }
+.morph-card.open .detail-inner { opacity: 1; transform: none; transition: opacity .2s ease .16s, transform .3s cubic-bezier(.22, 1, .36, 1) .1s; }
+.morph-card:not(.open) .detail-inner { opacity: 0; transform: translateY(3px); transition: opacity .1s ease, transform .1s ease; }
+.version-list { margin-top: 16px; border-top: 1px solid var(--line); }
+.version-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.version-row:last-child { border-bottom: 0; padding-bottom: 2px; }
+.version-main { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 24px; }
+.version-number { font-size: 13.5px; font-weight: 600; letter-spacing: -.15px; font-variant-numeric: tabular-nums; color: var(--text); overflow-wrap: anywhere; }
+.version-actions { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+.version-actions button { border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 999px; padding: 3px 10px; font-size: 11px; line-height: 1.3; }
+.version-actions button:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); color: var(--accent); }
+.version-actions button:disabled { opacity: .5; }
+.installed-label { font-size: 10.5px; color: var(--accent); }
+.unavailable-label { font-size: 10.5px; color: var(--faint); }
+.row-confirm { margin-top: 7px; padding: 8px 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); font-size: 11.5px; color: var(--text); }
+.row-confirm small { display: block; margin-top: 3px; color: var(--muted); font-size: 10.5px; }
+.row-confirm-actions { display: flex; gap: 6px; margin-top: 7px; }
+.row-confirm-actions button { border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 7px; padding: 4px 9px; font-size: 11px; }
+.row-confirm-actions .primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.row-progress { margin-top: 7px; font-size: 10.8px; color: var(--muted); }
+.row-progress > span:nth-child(2) { margin-left: 6px; }
+.row-progress .indeterminate { margin-top: 6px; }
+.row-error { margin-top: 5px; font-size: 10.8px; line-height: 1.45; color: #b45309; }
+.versions-message, .versions-empty { margin: 12px 0 2px; font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.versions-empty button { border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 7px; padding: 3px 8px; font-size: 10.5px; }
+.versions-error { margin: 8px 0 0; font-size: 10.8px; line-height: 1.45; color: #b45309; }

@@ -32,12 +32,12 @@ export function useInstallTask() {
     };
   }, []);
 
-  const start = useCallback(async (action: "install" | "uninstall", softwareId: string) => {
+  const start = useCallback(async (action: "install" | "uninstall", softwareId: string, version: string) => {
     setError(null);
     setResult(null);
-    setTask({ jobId: 0, softwareId, action, stage: "starting", message: action === "install" ? "正在提交安装…" : "正在提交卸载…", percent: null });
+    setTask({ jobId: 0, softwareId, version, action, stage: "starting", message: action === "install" ? "正在提交安装…" : "正在提交卸载…", percent: null });
     try {
-      await desktop<number>(action === "install" ? "start_homebrew_install" : "start_homebrew_uninstall", { softwareId });
+      await desktop<number>(action === "install" ? "start_homebrew_install" : "start_homebrew_uninstall", { softwareId, version });
     } catch (value) {
       setTask(null);
       setError(String(value));
@@ -48,8 +48,8 @@ export function useInstallTask() {
     task,
     result,
     error,
-    install: (softwareId: string) => start("install", softwareId),
-    uninstall: (softwareId: string) => start("uninstall", softwareId),
+    install: (softwareId: string, version: string) => start("install", softwareId, version),
+    uninstall: (softwareId: string, version: string) => start("uninstall", softwareId, version),
     clearResult: () => setResult(null)
   };
 }

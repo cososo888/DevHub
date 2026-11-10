@@ -49,48 +49,35 @@ export function desktop<T>(command: string, args?: Record<string, unknown>): Pro
   return invoke<T>(command, args);
 }
 
-export interface OwnershipView {
-  id: number;
-  status: string;
-  preexisting: boolean;
-  installedAt: number;
-  instancePath: string | null;
-  version: string | null;
+export interface VersionInstance {
+  source: string;
+  path: string;
+  health: string;
+  managedBy: string;
 }
 
-export interface InstallPreview {
-  softwareId: string;
-  package: string | null;
-  packageType: string | null;
-  brewAvailable: boolean;
-  brewVersion: string | null;
-  prefix: string | null;
-  formulaVersion: string | null;
-  channel: string;
-  alreadyInstalled: boolean;
-  canInstall: boolean;
-  reason: string | null;
-  dependencies: string[];
-  newDependencies: string[];
-  installedDependencies: string[];
-  ownership: OwnershipView | null;
-}
-
-export interface UninstallPreview {
-  softwareId: string;
-  package: string | null;
-  version: string | null;
-  instancePath: string | null;
+export interface VersionRow {
+  version: string;
+  installed: boolean;
+  installable: boolean;
   canUninstall: boolean;
+  methods: string[];
+  formula: string | null;
+  instances: VersionInstance[];
   reason: string | null;
-  dependents: string[];
-  ownership: OwnershipView | null;
-  warnings: string[];
+}
+
+export interface VersionCatalog {
+  softwareId: string;
+  versions: VersionRow[];
+  error: string | null;
+  homebrewAvailable: boolean;
 }
 
 export interface InstallProgress {
   jobId: number;
   softwareId: string;
+  version: string;
   action: "install" | "uninstall";
   stage: string;
   message: string;
@@ -108,6 +95,7 @@ export interface Verification {
 export interface InstallFinished {
   jobId: number;
   softwareId: string;
+  version: string;
   action: "install" | "uninstall";
   success: boolean;
   message: string;
