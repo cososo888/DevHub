@@ -6,6 +6,8 @@ use crate::detection::DetectionSnapshot;
 use crate::homebrew;
 use crate::jdk;
 use crate::rustup;
+use crate::fnm;
+use crate::uv;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -46,7 +48,7 @@ pub struct VersionCatalog {
     pub stale: bool,
 }
 
-fn compare_versions(left: &str, right: &str) -> Ordering {
+pub fn compare_version_strings(left: &str, right: &str) -> Ordering {
     let parse = |value: &str| value.split(|character: char| !character.is_ascii_digit())
         .filter(|part| !part.is_empty())
         .map(|part| part.parse::<u64>().unwrap_or(0))
@@ -67,6 +69,12 @@ fn compare_versions(left: &str, right: &str) -> Ordering {
 fn manager_for(software_id: &str, path: &str) -> (String, Option<String>) {
     if path.contains("/Application Support/com.yujian.devhub") {
         return ("旧版 DevHub".into(), Some("旧版 DevHub 受管安装保持只读".into()));
+    }
+    if path.contains("/fnm/node-versions/") {
+        return ("fnm".into(), None);
+    }
+    if path.contains("/uv/python/") {
+        return ("uv".into(), None);
     }
     if path.contains("/Cellar/") || path.contains("/opt/homebrew/") || path.contains("/usr/local/Cellar/") {
         return ("Homebrew".into(), None);
@@ -124,25 +132,30 @@ pub fn catalog(software_id: &str, snapshot: &DetectionSnapshot) -> VersionCatalo
         let jdk_info = if software_id == "jdk" { Some(jdk::analyze(&instance.path)) } else { None };
         let rustup_info = if software_id == "rust" { Some(rustup::analyze(&instance.path)) } else { None };
         let (manager, manager_reason) = manager_for(software_id, &instance.path);
+        let fnm_managed = software_id == "node" && fnm::is_managed(&instance.path);
+        let fnm_default = fnm_managed && instance.version.as_deref().is_some_and(|version| fnm::default_version().as_deref() == Some(version));
+        let uv_managed = software_id == "python" && uv::is_managed(&instance.path);
         let can_uninstall = jdk_info.as_ref().map(|value| value.can_uninstall).unwrap_or(false)
-            || rustup_info.as_ref().map(|value| value.can_uninstall).unwrap_or(false);
+            || rustup_info.as_ref().map(|value| value.can_uninstall).unwrap_or(false)
+            || (fnm_managed && !fnm_default) || uv_managed;
         row.instances.push(VersionInstance {
             source: instance.source.clone(),
             path: instance.path.clone(),
             health: instance.health.clone(),
             managed_by: instance.managed_by.clone(),
             can_uninstall,
-            mechanism: if rustup_info.as_ref().map(|value| value.can_uninstall).unwrap_or(false) { Some("rustup".into()) } else if jdk_info.as_ref().map(|value| value.can_uninstall).unwrap_or(false) { Some("jdkTrash".into()) } else { None },
-            reason: jdk_info.as_ref().and_then(|value| value.reason.clone()).or_else(|| rustup_info.as_ref().and_then(|value| value.reason.clone())).or(manager_reason),
+            mechanism: if uv_managed { Some("uv".into()) } else if fnm_managed && !fnm_default { Some("fnm".into()) } else if rustup_info.as_ref().map(|value| value.can_uninstall).unwrap_or(false) { Some("rustup".into()) } else if jdk_info.as_ref().map(|value| value.can_uninstall).unwrap_or(false) { Some("jdkTrash".into()) } else { None },
+            reason: if fnm_default { Some("fnm 默认别名，卸载会改变默认 Node 版本".into()) } else { jdk_info.as_ref().and_then(|value| value.reason.clone()).or_else(|| rustup_info.as_ref().and_then(|value| value.reason.clone())).or(manager_reason) },
             root_path: jdk_info.as_ref().map(|value| value.root.clone()).filter(|value| !value.is_empty()),
-            manager: if rustup_info.as_ref().map(|value| !value.toolchain.is_empty()).unwrap_or(false) { "rustup".into() } else if jdk_info.is_some() { jdk_info.as_ref().map(|value| if value.vendor.is_empty() { "JDK".into() } else { value.vendor.clone() }).unwrap_or_else(|| manager.clone()) } else { manager.clone() },
+            manager: if uv_managed { "uv".into() } else if fnm_managed { "fnm".into() } else if rustup_info.as_ref().map(|value| !value.toolchain.is_empty()).unwrap_or(false) { "rustup".into() } else if jdk_info.is_some() { jdk_info.as_ref().map(|value| if value.vendor.is_empty() { "JDK".into() } else { value.vendor.clone() }).unwrap_or_else(|| manager.clone()) } else { manager.clone() },
         });
         if can_uninstall {
             row.can_uninstall = true;
         }
 
     }
-    let (formulae, error) = homebrew::available(software_id);
+    let fnm_catalog = if software_id == "node" { fnm::catalog_versions().ok().filter(|versions| !versions.is_empty()) } else { None };
+    let (formulae, error) = if fnm_catalog.is_some() { (Vec::new(), None) } else { homebrew::available(software_id) };
     for formula in formulae {
         if !formula.installed.is_empty() {
             let formula_marker = format!("/Cellar/{}/", formula.name);
@@ -190,6 +203,34 @@ pub fn catalog(software_id: &str, snapshot: &DetectionSnapshot) -> VersionCatalo
             row.reason = Some("安装时可能拉取依赖".into());
         }
     }
+    if let Some(fnm_versions) = fnm_catalog {
+        {
+            for version in fnm_versions {
+                let row = rows.entry(version.clone()).or_insert_with(|| ensure(&version));
+                if !row.installed {
+                    row.installable = true;
+                    row.methods = vec!["fnm".into()];
+                    row.reason = None;
+                } else if !row.methods.iter().any(|method| method == "fnm") {
+                    row.methods.push("fnm".into());
+                }
+            }
+        }
+    }
+    if software_id == "python" {
+        if let Ok(uv_versions) = uv::available() {
+            for version in uv_versions {
+                let row = rows.entry(version.clone()).or_insert_with(|| ensure(&version));
+                if !row.installed {
+                    row.installable = true;
+                    row.methods = vec!["uv".into()];
+                    row.reason = None;
+                } else if !row.methods.iter().any(|method| method == "uv") {
+                    row.methods.push("uv".into());
+                }
+            }
+        }
+    }
     let mut versions: Vec<VersionRow> = rows.into_values().collect();
     for row in &mut versions {
         if row.installed {
@@ -200,7 +241,7 @@ pub fn catalog(software_id: &str, snapshot: &DetectionSnapshot) -> VersionCatalo
             }
         }
     }
-    versions.sort_by(|a, b| compare_versions(&b.version, &a.version));
+    versions.sort_by(|a, b| compare_version_strings(&b.version, &a.version));
     VersionCatalog {
         software_id: software_id.into(),
         versions,
@@ -263,7 +304,7 @@ pub fn merge_history(mut live: VersionCatalog, cached: Option<&VersionCatalog>, 
         for row in &mut live.versions { row.installable = false; }
         live.stale = true;
     }
-    live.versions.sort_by(|a, b| compare_versions(&b.version, &a.version));
+    live.versions.sort_by(|a, b| compare_version_strings(&b.version, &a.version));
     live
 }
 
@@ -327,14 +368,30 @@ mod tests {
 
     #[test]
     #[ignore]
+    fn live_node_catalog_timing() {
+        let snapshot = crate::detection::scan();
+        let started = std::time::Instant::now();
+        let catalog = catalog("node", &snapshot);
+        println!("node catalog: {} rows, {:?}", catalog.versions.len(), started.elapsed());
+        assert!(catalog.versions.len() <= 30);
+    }
+
+    #[test]
+    #[ignore]
     fn live_version_catalogs() {
         let snapshot = crate::detection::scan();
         for id in ["git", "go", "maven", "gradle", "node", "python", "jdk", "rust"] {
             println!("### {id}");
             let catalog = catalog(id, &snapshot);
             for row in catalog.versions.iter().filter(|row| row.installable) {
-                let resolved = homebrew::resolve_install(id, &row.version);
-                assert!(resolved.is_ok(), "{} {} must be resolvable: {:?}", id, row.version, resolved.err());
+                let resolved = if row.methods.iter().any(|method| method == "fnm") {
+                    fnm::available().map(|versions| versions.iter().any(|version| version == &row.version)).unwrap_or(false)
+                } else if row.methods.iter().any(|method| method == "uv") {
+                    uv::available().map(|versions| versions.iter().any(|version| version == &row.version)).unwrap_or(false)
+                } else {
+                    homebrew::resolve_install(id, &row.version).is_ok()
+                };
+                assert!(resolved, "{} {} must be resolvable through its adapter", id, row.version);
             }
             println!("{}", serde_json::to_string_pretty(&catalog).expect("catalog json"));
         }
@@ -343,7 +400,7 @@ mod tests {
     #[test]
     fn sorts_versions_newest_first() {
         let mut versions = vec!["2.9.0", "2.50.1", "2.10.0"];
-        versions.sort_by(|a, b| compare_versions(b, a));
+        versions.sort_by(|a, b| compare_version_strings(b, a));
         assert_eq!(versions, vec!["2.50.1", "2.10.0", "2.9.0"]);
     }
 }

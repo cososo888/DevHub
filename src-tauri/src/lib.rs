@@ -1,9 +1,11 @@
 mod detection;
+mod fnm;
 mod homebrew;
 mod jdk;
 mod process;
 mod rustup;
 mod storage;
+mod uv;
 mod versions;
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -181,6 +183,70 @@ fn refresh_detection(app: AppHandle, state: State<AppState>) -> bool {
 
 #[tauri::command]
 fn start_homebrew_install(app: AppHandle, state: State<AppState>, software_id: String, version: String) -> Result<u64, String> {
+    if software_id == "python" && uv::available().map(|versions| versions.iter().any(|item| item == &version)).unwrap_or(false) {
+        if state.install_busy.swap(true, Ordering::SeqCst) {
+            return Err("已有安装或卸载任务正在执行".into());
+        }
+        let installed_same = snapshot_clone(&state).map(|snapshot| snapshot.instances.iter().any(|item| item.software_id == "python" && item.version.as_deref() == Some(version.as_str()))).unwrap_or(false);
+        if installed_same {
+            state.install_busy.store(false, Ordering::SeqCst);
+            return Err("该版本已经存在于本机".into());
+        }
+        let job_id = state.job_seq.fetch_add(1, Ordering::SeqCst) + 1;
+        let state = state.inner().clone();
+        let app = app.clone();
+        std::thread::spawn(move || {
+            let _guard = BusyGuard(state.install_busy.clone());
+            emit_progress(&app, job_id, &software_id, &version, "install", "installing", "正在通过 uv 安装 Python…");
+            if let Err(error) = uv::install(&version) {
+                emit_finished(&app, job_id, &software_id, &version, "install", false, &format!("Python 安装失败：{error}"), &error, None);
+                return;
+            }
+            emit_progress(&app, job_id, &software_id, &version, "install", "verifying", "uv 安装完成，正在重新检测 Python…");
+            let snapshot = detect_now(&app, &state);
+            let path = uv::version_root(&version);
+            let found = path.as_ref().map(|path| snapshot.instances.iter().any(|item| item.software_id == "python" && item.path == path.to_string_lossy() && item.version.as_deref() == Some(version.as_str()))).unwrap_or(false);
+            if !found {
+                emit_finished(&app, job_id, &software_id, &version, "install", false, "uv 安装结束，但未检测到对应 Python 版本", "", None);
+                return;
+            }
+            emit_finished(&app, job_id, &software_id, &version, "install", true, "Python 已安装；PATH/Shell 未修改", "", Some(Verification { verified: true, instance_path: path.map(|path| path.to_string_lossy().into_owned()), version: Some(version.clone()), health: Some("ok".into()), system_git_available: None }));
+        });
+        return Ok(job_id);
+    }
+    if software_id == "node" && fnm::available().map(|versions| versions.iter().any(|item| item == &version)).unwrap_or(false) {
+        if state.install_busy.swap(true, Ordering::SeqCst) {
+            return Err("已有安装或卸载任务正在执行".into());
+        }
+        let installed_same = snapshot_clone(&state).map(|snapshot| snapshot.instances.iter().any(|item| item.software_id == "node" && item.version.as_deref() == Some(version.as_str()))).unwrap_or(false);
+        if installed_same {
+            state.install_busy.store(false, Ordering::SeqCst);
+            return Err("该版本已经存在于本机".into());
+        }
+        let job_id = state.job_seq.fetch_add(1, Ordering::SeqCst) + 1;
+        let state = state.inner().clone();
+        let app = app.clone();
+        std::thread::spawn(move || {
+            let _guard = BusyGuard(state.install_busy.clone());
+            emit_progress(&app, job_id, &software_id, &version, "install", "installing", "正在通过 fnm 安装 Node.js…");
+            if let Err(error) = fnm::install(&version) {
+                let snapshot = detect_now(&app, &state);
+                let system = snapshot.instances.iter().any(|item| item.software_id == "git" && item.path == "/usr/bin/git" && item.health == "ok");
+                emit_finished(&app, job_id, &software_id, &version, "install", false, &format!("Node.js 安装失败：{error}"), &error, Some(Verification { verified: false, instance_path: None, version: None, health: None, system_git_available: if software_id == "git" { Some(system) } else { None } }));
+                return;
+            }
+            emit_progress(&app, job_id, &software_id, &version, "install", "verifying", "fnm 安装完成，正在重新检测 Node.js…");
+            let snapshot = detect_now(&app, &state);
+            let path = fnm::version_root(&version);
+            let found = path.as_ref().map(|path| snapshot.instances.iter().any(|item| item.software_id == "node" && item.path == path.to_string_lossy() && item.version.as_deref() == Some(version.as_str()))).unwrap_or(false);
+            if !found {
+                emit_finished(&app, job_id, &software_id, &version, "install", false, "fnm 安装结束，但未检测到对应 Node.js 版本", "", None);
+                return;
+            }
+            emit_finished(&app, job_id, &software_id, &version, "install", true, "Node.js 已安装；PATH/Shell 未修改", "", Some(Verification { verified: true, instance_path: path.map(|path| path.to_string_lossy().into_owned()), version: Some(version.clone()), health: Some("ok".into()), system_git_available: None }));
+        });
+        return Ok(job_id);
+    }
     if !homebrew::supported(&software_id) {
         return Err("当前阶段暂时只支持部分软件的安装".into());
     }
@@ -257,6 +323,69 @@ fn start_homebrew_uninstall(app: AppHandle, state: State<AppState>, software_id:
             return Err("没有找到该版本可安全卸载的安装方式".into());
         };
         let snapshot = snapshot_clone(&state).ok_or_else(|| "尚未完成本机检测".to_string())?;
+        if software_id == "python" && uv::is_managed(&instance_path) {
+            let exists = snapshot.instances.iter().any(|item| item.software_id == "python" && item.path == instance_path);
+            if !exists {
+                return Err("该 Python 实例不在当前检测结果中".into());
+            }
+            if state.install_busy.swap(true, Ordering::SeqCst) {
+                return Err("已有安装或卸载任务正在执行".into());
+            }
+            let job_id = state.job_seq.fetch_add(1, Ordering::SeqCst) + 1;
+            let state = state.inner().clone();
+            let app = app.clone();
+            std::thread::spawn(move || {
+                let _guard = BusyGuard(state.install_busy.clone());
+                emit_progress(&app, job_id, &software_id, &version, "uninstall", "uninstalling", "正在通过 uv 移除 Python…");
+                if let Err(error) = uv::uninstall(&version) {
+                    emit_finished(&app, job_id, &software_id, &version, "uninstall", false, &format!("Python 卸载失败：{error}"), &error, None);
+                    return;
+                }
+                let snapshot = detect_now(&app, &state);
+                let still_present = snapshot.instances.iter().any(|item| item.software_id == "python" && item.path == instance_path);
+                if still_present {
+                    emit_finished(&app, job_id, &software_id, &version, "uninstall", false, "uv 卸载结束，但仍检测到该 Python 实例", "", None);
+                    return;
+                }
+                if let Ok(connection) = state.db.lock() {
+                    let _ = storage::record_uninstall(&connection, &software_id, &version, "uv", Some(&instance_path), now_ms());
+                }
+                emit_finished(&app, job_id, &software_id, &version, "uninstall", true, "Python 版本已通过 uv 移除；PATH/Shell 未修改", "", Some(Verification { verified: true, instance_path: None, version: None, health: None, system_git_available: None }));
+            });
+            return Ok(job_id);
+        }
+        if software_id == "node" && fnm::is_managed(&instance_path) {
+            let exists = snapshot.instances.iter().any(|item| item.software_id == "node" && item.path == instance_path);
+            if !exists {
+                return Err("该 Node.js 实例不在当前检测结果中".into());
+            }
+            fnm::validate_uninstall(&version, &instance_path)?;
+            if state.install_busy.swap(true, Ordering::SeqCst) {
+                return Err("已有安装或卸载任务正在执行".into());
+            }
+            let job_id = state.job_seq.fetch_add(1, Ordering::SeqCst) + 1;
+            let state = state.inner().clone();
+            let app = app.clone();
+            std::thread::spawn(move || {
+                let _guard = BusyGuard(state.install_busy.clone());
+                emit_progress(&app, job_id, &software_id, &version, "uninstall", "uninstalling", "正在通过 fnm 移除 Node.js…");
+                if let Err(error) = fnm::uninstall(&version) {
+                    emit_finished(&app, job_id, &software_id, &version, "uninstall", false, &format!("Node.js 卸载失败：{error}"), &error, None);
+                    return;
+                }
+                let snapshot = detect_now(&app, &state);
+                let still_present = snapshot.instances.iter().any(|item| item.software_id == "node" && item.path == instance_path);
+                if still_present {
+                    emit_finished(&app, job_id, &software_id, &version, "uninstall", false, "fnm 卸载结束，但仍检测到该 Node.js 实例", "", None);
+                    return;
+                }
+                if let Ok(connection) = state.db.lock() {
+                    let _ = storage::record_uninstall(&connection, &software_id, &version, "fnm", Some(&instance_path), now_ms());
+                }
+                emit_finished(&app, job_id, &software_id, &version, "uninstall", true, "Node.js 版本已通过 fnm 移除；PATH/Shell 未修改", "", Some(Verification { verified: true, instance_path: None, version: None, health: None, system_git_available: None }));
+            });
+            return Ok(job_id);
+        }
         if software_id == "rust" {
             if !snapshot.instances.iter().any(|item| item.software_id == "rust" && item.path == instance_path) {
                 return Err("该 Rust 实例不在当前检测结果中".into());

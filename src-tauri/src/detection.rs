@@ -135,6 +135,8 @@ fn trusted(path: &Path) -> bool {
             || text.contains("/.rustup/")
             || text.contains("/.volta/")
             || text.contains("/.asdf/")
+            || text.contains("/.local/share/fnm/")
+            || text.contains("/.local/share/uv/")
             || text.contains(".jdk/Contents/Home/")
             || text.contains("/jdk-")
             || text.contains("/Library/Java/")
@@ -176,6 +178,11 @@ fn search_dirs() -> Vec<PathBuf> {
             add_dir(&mut dirs, base);
         }
     }
+    for fnm_root in [home.join("Library/Application Support/fnm/node-versions"), home.join(".local/share/fnm/node-versions")] {
+        for version in child_dirs(&fnm_root) { add_dir(&mut dirs, version.join("installation/bin")); }
+    }
+    let uv_root = home.join(".local/share/uv/python");
+    for python in child_dirs(&uv_root) { add_dir(&mut dirs, python.join("bin")); }
     for jdk_root in [PathBuf::from("/Library/Java/JavaVirtualMachines"), home.join("Library/Java/JavaVirtualMachines")] {
         for jdk in child_dirs(&jdk_root) { add_dir(&mut dirs, jdk.join("Contents/Home/bin")); }
     }
@@ -523,7 +530,7 @@ fn probe(mut candidate: Candidate, sources: Vec<String>, last_detected_at: i64) 
         path: candidate.path.to_string_lossy().into_owned(),
         kind: candidate.kind.into(),
         executable,
-        managed_by: candidate.managed_by.into(),
+        managed_by: if candidate.path.to_string_lossy().contains("/fnm/node-versions/") { "fnm" } else if candidate.path.to_string_lossy().contains("/uv/python/") { "uv" } else { candidate.managed_by }.into(),
         health: health.into(),
         detail,
         last_detected_at,
@@ -645,6 +652,8 @@ mod tests {
         assert!(trusted(Path::new("/usr/bin/git")));
         assert!(trusted(Path::new("/opt/homebrew/bin/brew")));
         assert!(!trusted(Path::new("/tmp/evil/node")));
+        assert!(trusted(&home().join(".local/share/fnm/node-versions/v22.14.0/installation/bin/node")));
+        assert!(trusted(&home().join(".local/share/uv/python/cpython-3.12-macos-aarch64-none/bin/python3")));
     }
 
     #[test]
