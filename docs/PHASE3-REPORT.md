@@ -1,7 +1,26 @@
 # DevHub V2 · 第三阶段验收报告
 
 日期：2026-11-10
-状态：**第三阶段代码与自动化验证完成，真实安装/卸载等待用户亲自操作；未进入第四阶段。**
+状态：**第三阶段已通过用户亲自验收：真实 Homebrew Git 安装、验证、卸载成功，系统 Git 保留。未进入第四阶段。**
+
+## 0. 用户验收结果（2026-11-10）
+
+用户已在 DevHub V2 图形界面中亲自完成 Git 安装与卸载：
+
+| 项 | 实际结果 |
+| --- | --- |
+| 安装时间 | 2026-11-10 19:38:58 |
+| 安装包 | Homebrew formula `git` |
+| 安装版本 | 2.56.0 |
+| 安装路径 | `/opt/homebrew/Cellar/git/2.56.0_2/bin/git` |
+| 安装前已存在 | 否（`preexisting=0`） |
+| 卸载时间 | 2026-11-10 19:40:34 |
+| 归属记录 | `status=success`，随后记录 `uninstalled_at` |
+| 卸载后 Homebrew Git | 已不存在（`brew list --versions git` 为空） |
+| 卸载后系统 Git | `/usr/bin/git`，2.50.1，正常 |
+| 卸载后检测 | 仅剩系统 Git 一条实例 |
+
+这验证了：真实安装 → 重新检测 → 版本验证 → 归属记录 → 依赖检查 → Homebrew 卸载 → 系统 Git 保留的完整闭环。
 
 ## 1. 结论先行
 
@@ -162,7 +181,7 @@ brew uninstall git
 
 详情截图使用与原生应用相同的前端，在无头 Chromium 中注入真实检测快照和真实只读 Git 预览；原生窗口截图来自真实应用。没有把模拟安装结果当成真实安装。
 
-## 9. 自动化已验证 vs 待你亲自验证
+## 9. 自动化与用户真实验证
 
 ### 已由自动化/只读操作验证
 
@@ -174,14 +193,14 @@ brew uninstall git
 - 检测后 Git 系统版本 2.50.1、Homebrew 候选 2.56.0 共存展示。
 - 应用实际启动；未改变 Homebrew 安装列表、系统 Git 或 PATH。
 
-### 尚待你亲自操作验证
+### 用户已亲自完成验证
 
-- 真实 `brew install git` 是否成功、耗时、真实输出。
-- 安装后检测是否出现 Homebrew Git 实例、归属是否写入 success。
-- 真实 `brew uninstall git`、依赖检查与系统 Git 仍可用的最终结果。
-- 安装失败、超时或中断时的真实现场表现。
+- 真实 `brew install git` 成功，安装时间 19:38:58；版本 2.56.0。
+- 安装后归属记录写入 `success`，实例路径与版本已验证。
+- 真实 `brew uninstall git` 成功，卸载时间 19:40:34；依赖检查通过。
+- 卸载后 Homebrew Git 消失，系统 Git 2.50.1 仍可用。
 
-当前机器证据：`brew list --versions` 仍只有 `ncmdump`、`taglib`、`utf8cpp`；没有 git；`/usr/bin/git` 2.50.1；`install_ownership` 无记录。
+验收后机器证据：`brew list --versions git` 为空；`/usr/bin/git` 2.50.1；`install_ownership` 保留一条已卸载的成功归属记录。
 
 ## 10. 边界
 
