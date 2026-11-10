@@ -76,13 +76,13 @@ mod tests {
         let connection = Connection::open_in_memory().expect("memory db");
         connection.execute_batch("CREATE TABLE install_ownership (id INTEGER PRIMARY KEY AUTOINCREMENT, software_id TEXT NOT NULL, package TEXT NOT NULL, package_type TEXT NOT NULL, status TEXT NOT NULL, preexisting INTEGER NOT NULL DEFAULT 0, installed_at INTEGER NOT NULL, uninstalled_at INTEGER, instance_path TEXT, version TEXT, message TEXT);").expect("schema");
         let id = insert_pending(&connection, "git", "git", "formula", false, 100).expect("insert");
-        assert!(active_for(&connection, "git").is_none());
+        assert!(active_for_version(&connection, "git", "2.51.0").is_none());
         update_install(&connection, id, "success", Some("/opt/homebrew/bin/git"), Some("2.51.0"), None, 101).expect("update");
-        let active = active_for(&connection, "git").expect("active");
+        let active = active_for_version(&connection, "git", "2.51.0").expect("active");
         assert_eq!(active.version.as_deref(), Some("2.51.0"));
         assert!(!active.preexisting);
         mark_uninstalled(&connection, id, 102).expect("uninstall");
-        assert!(active_for(&connection, "git").is_none());
+        assert!(active_for_version(&connection, "git", "2.51.0").is_none());
     }
 
     #[test]
@@ -169,25 +169,3 @@ pub fn active_for_version(connection: &Connection, software_id: &str, version: &
         }),
     ).ok()
 }
-
-pub fn active_for(connection: &Connection, software_id: &str) -> Option<OwnershipRecord> {
-    connection.query_row(
-        "SELECT id, software_id, package, package_type, status, preexisting, installed_at, uninstalled_at, instance_path, version, message
-         FROM install_ownership WHERE software_id = ?1 AND status = 'success' AND uninstalled_at IS NULL ORDER BY id DESC LIMIT 1",
-        params![software_id],
-        |row| Ok(OwnershipRecord {
-            id: row.get(0)?,
-            software_id: row.get(1)?,
-            package: row.get(2)?,
-            package_type: row.get(3)?,
-            status: row.get(4)?,
-            preexisting: row.get::<_, i64>(5)? != 0,
-            installed_at: row.get(6)?,
-            uninstalled_at: row.get(7)?,
-            instance_path: row.get(8)?,
-            version: row.get(9)?,
-            message: row.get(10)?,
-        }),
-    ).ok()
-}
-

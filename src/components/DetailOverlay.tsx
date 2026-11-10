@@ -57,7 +57,7 @@ function DetailBody({ item, versions, loading, error, task, result, actionError,
   onRetry: () => void;
   onConfirm: (value: Confirm) => void;
   onInstall: (version: string) => void;
-  onUninstall: (version: string) => void;
+  onUninstall: (version: string, formula: string | null) => void;
   interactive?: boolean;
 }) {
   return (
@@ -99,7 +99,7 @@ function DetailBody({ item, versions, loading, error, task, result, actionError,
                   <span>{confirm.action === "install" ? `安装 ${row.version}？` : `卸载 ${row.version}？`}</span>
                   {confirm.action === "uninstall" && <small>其他来源的同名版本不会被修改。</small>}
                   <div className="row-confirm-actions">
-                    <button type="button" className="primary" onClick={() => { onConfirm(null); confirm.action === "install" ? onInstall(row.version) : onUninstall(row.version); }}>确认</button>
+                    <button type="button" className="primary" onClick={() => { onConfirm(null); confirm.action === "install" ? onInstall(row.version) : onUninstall(row.version, row.formula); }}>确认</button>
                     <button type="button" onClick={() => onConfirm(null)}>取消</button>
                   </div>
                 </div>
@@ -108,7 +108,7 @@ function DetailBody({ item, versions, loading, error, task, result, actionError,
                 <div className="row-progress" role="status">
                   <span className="mini-spinner" />
                   <span>{rowTask.message}</span>
-                  <div className="indeterminate"><span /></div>
+                  <div className="indeterminate" />
                 </div>
               )}
               {rowResult && !rowResult.success && (
@@ -136,7 +136,7 @@ export function DetailOverlay({ item, origin, onClose, versions = EMPTY_VERSIONS
   result?: InstallFinished | null;
   actionError?: string | null;
   onInstall: (version: string) => void;
-  onUninstall: (version: string) => void;
+  onUninstall: (version: string, formula: string | null) => void;
 }) {
   const reduced = useReducedMotion();
   const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });

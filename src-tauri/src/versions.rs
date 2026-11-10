@@ -4,7 +4,6 @@ use std::collections::BTreeMap;
 
 use crate::detection::DetectionSnapshot;
 use crate::homebrew;
-use crate::storage::OwnershipRecord;
 
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -55,7 +54,7 @@ fn compare_versions(left: &str, right: &str) -> Ordering {
     left.cmp(right)
 }
 
-pub fn catalog(software_id: &str, snapshot: &DetectionSnapshot, ownership: Option<OwnershipRecord>) -> VersionCatalog {
+pub fn catalog(software_id: &str, snapshot: &DetectionSnapshot) -> VersionCatalog {
     let mut rows: BTreeMap<String, VersionRow> = BTreeMap::new();
     let ensure = |version: &str| -> VersionRow {
         VersionRow {
@@ -86,15 +85,34 @@ pub fn catalog(software_id: &str, snapshot: &DetectionSnapshot, ownership: Optio
             let formula_marker = format!("/Cellar/{}/", formula.name);
             let opt_marker = format!("/opt/{}/", formula.name);
             let existing = rows.iter().find(|(_, row)| row.installed && row.instances.iter().any(|instance| instance.path.contains(&formula_marker) || instance.path.contains(&opt_marker))).map(|(version, _)| version.clone());
+            let mut keys = Vec::new();
             if let Some(version) = existing {
                 if let Some(row) = rows.get_mut(&version) {
                     row.formula = Some(formula.name.clone());
                 }
+                keys.push(version);
             } else {
                 for version in &formula.installed {
                     let row = rows.entry(version.clone()).or_insert_with(|| ensure(version));
                     row.installed = true;
                     row.formula = Some(formula.name.clone());
+                    keys.push(version.clone());
+                }
+            }
+            let dependents = homebrew::dependents(&formula.name);
+            let has_instance = keys.iter().any(|key| rows.get(key).map(|row| !row.instances.is_empty()).unwrap_or(false));
+            let blocked = match &dependents {
+                Ok(values) if values.is_empty() => None,
+                Ok(values) => Some(format!("被其他软件依赖：{}", values.join("、"))),
+                Err(_) => Some("无法确认依赖影响，暂不提供卸载".into()),
+            };
+            for key in keys {
+                if let Some(row) = rows.get_mut(&key) {
+                    if has_instance && blocked.is_none() {
+                        row.can_uninstall = true;
+                    } else {
+                        row.reason = blocked.clone().or_else(|| Some("未能定位可安全卸载的安装实例".into()));
+                    }
                 }
             }
             continue;
@@ -107,19 +125,6 @@ pub fn catalog(software_id: &str, snapshot: &DetectionSnapshot, ownership: Optio
         row.methods = vec!["homebrew".into()];
         if !formula.dependencies.is_empty() {
             row.reason = Some("安装时可能拉取依赖".into());
-        }
-    }
-    if let Some(ownership) = ownership {
-        let target = rows.iter().find(|(_, row)| {
-            row.installed && (row.version == ownership.version.clone().unwrap_or_default()
-                || row.instances.iter().any(|instance| Some(instance.path.as_str()) == ownership.instance_path.as_deref()))
-        }).map(|(version, _)| version.clone())
-            .or_else(|| rows.iter().find(|(_, row)| row.installed && row.formula.is_some()).map(|(version, _)| version.clone()));
-        if let Some(version) = target {
-            if let Some(row) = rows.get_mut(&version) {
-                row.can_uninstall = true;
-                row.formula = Some(ownership.package.clone());
-            }
         }
     }
     let mut versions: Vec<VersionRow> = rows.into_values().collect();
@@ -170,7 +175,7 @@ mod tests {
 
     #[test]
     fn merges_same_version_instances_and_keeps_paths() {
-        let catalog = catalog("git", &snapshot(vec![instance("2.50.1", "path", "/usr/bin/git"), instance("2.50.1", "devhubV1", "/tmp/v1/git")]), None);
+        let catalog = catalog("git", &snapshot(vec![instance("2.50.1", "path", "/usr/bin/git"), instance("2.50.1", "devhubV1", "/tmp/v1/git")]));
         let row = catalog.versions.iter().find(|row| row.version == "2.50.1").expect("row");
         assert_eq!(row.instances.len(), 2);
         assert!(row.installed);
@@ -182,7 +187,7 @@ mod tests {
         let snapshot = crate::detection::scan();
         for id in ["git", "go", "maven", "gradle", "node", "python", "jdk", "rust"] {
             println!("### {id}");
-            let catalog = catalog(id, &snapshot, None);
+            let catalog = catalog(id, &snapshot);
             for row in catalog.versions.iter().filter(|row| row.installable) {
                 let resolved = homebrew::resolve_install(id, &row.version);
                 assert!(resolved.is_ok(), "{} {} must be resolvable: {:?}", id, row.version, resolved.err());

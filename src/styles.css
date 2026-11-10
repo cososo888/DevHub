@@ -353,9 +353,18 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 34px); letter-spacing: -1px; font-we
 .install-task-head { display: flex; align-items: center; gap: 7px; font-size: 11.5px; line-height: 1.45; color: var(--text); }
 .mini-spinner { width: 11px; height: 11px; flex-shrink: 0; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent); animation: spin .9s linear infinite; }
 .indeterminate { position: relative; height: 4px; margin-top: 8px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--text) 8%, transparent); }
-.indeterminate span { display: block; width: 38%; height: 100%; border-radius: inherit; background: var(--accent); animation: indeterminate 1.2s ease-in-out infinite; }
-.indeterminate.determinate span { animation: none; }
-@keyframes indeterminate { 0% { transform: translateX(-110%); } 100% { transform: translateX(300%); } }
+.indeterminate::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -40%; width: 40%;
+  border-radius: inherit; background: var(--accent);
+  animation: indeterminate-sweep 1.2s linear infinite;
+}
+@keyframes indeterminate-sweep {
+  from { left: -40%; }
+  to { left: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .indeterminate::after { animation: none; left: 30%; }
+}
 .install-result { margin-top: 12px; padding: 9px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); }
 .install-result.success { border-color: color-mix(in srgb, #2f9e63 35%, var(--line)); }
 .install-result.failure { border-color: color-mix(in srgb, #c2410c 35%, var(--line)); }
@@ -440,3 +449,8 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 34px); letter-spacing: -1px; font-we
 .versions-message, .versions-empty { margin: 12px 0 2px; font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
 .versions-empty button { border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 7px; padding: 3px 8px; font-size: 10.5px; }
 .versions-error { margin: 8px 0 0; font-size: 10.8px; line-height: 1.45; color: #b45309; }
+
+/* Remove the decorative page title; keep only detection status and actions. */
+.main { padding-top: 26px; }
+.grid-heading { align-items: center; margin-bottom: 22px; }
+.detection-line { margin: 0; }

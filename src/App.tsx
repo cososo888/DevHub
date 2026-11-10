@@ -57,14 +57,15 @@ export default function App() {
   const selectedId = selected?.item.id ?? null;
   const versions = useSoftwareVersions(selectedId, `${install.result?.jobId ?? 0}:${snapshot?.refreshedAt ?? 0}`);
   const busyIds = useMemo(() => new Set(install.task ? [install.task.softwareId] : []), [install.task]);
+  const instanceCount = snapshot?.instances?.length ?? 0;
   const cacheState = !snapshot
     ? refreshing ? "正在读取本机环境…" : "尚未检测"
     : snapshot.stale
       ? refreshing ? "缓存结果 · 正在重新验证" : "缓存结果已过期 · 等待刷新"
       : refreshing
         ? "正在刷新…"
-        : `已检测 ${snapshot.instances.length} 个安装实例 · 更新于 ${formatUpdated(snapshot.refreshedAt)}`;
-  const warning = snapshot && snapshot.errors.length > 0 ? ` · ${snapshot.errors.length} 项检测警告` : "";
+        : `已检测 ${instanceCount} 个安装实例 · 更新于 ${formatUpdated(snapshot.refreshedAt)}`;
+  const warning = snapshot?.errors?.length ? ` · ${snapshot.errors.length} 项检测警告` : "";
 
   return (
     <div className="app" data-theme={theme}>
@@ -82,9 +83,6 @@ export default function App() {
       <main className="main">
         <div className="grid-heading">
           <div>
-            <p className="eyebrow">DEVELOPMENT ENVIRONMENT</p>
-            <h1>选择你的开发工具</h1>
-            <p className="sub">点击圆形查看版本；安装与卸载会在你确认后执行。</p>
             <p className={`detection-line${error ? " error" : ""}`} role="status">
               {cacheState}
               {warning}
@@ -120,7 +118,7 @@ export default function App() {
           result={install.result && install.result.softwareId === selectedId ? install.result : null}
           actionError={install.error}
           onInstall={(version) => { if (selected) void install.install(selected.item.id, version); }}
-          onUninstall={(version) => { if (selected) void install.uninstall(selected.item.id, version); }}
+          onUninstall={(version, formula) => { if (selected) void install.uninstall(selected.item.id, version, formula); }}
           onClose={() => setSelected(null)}
         />
       )}

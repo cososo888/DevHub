@@ -223,6 +223,34 @@ test("version query failure has a short retry action", async () => {
   assert.equal(retries, 1);
 });
 
+test("external Homebrew installation can be uninstalled through its formula", async () => {
+  const item = SOFTWARE.find(entry => entry.id === "go");
+  const versions = [versionRow({ version: "1.27.3", installed: true, canUninstall: true, formula: "go" })];
+  let target = null;
+  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, versions, onUninstall: (version, formula) => { target = { version, formula }; } }));
+  const dialog = await screen.findByRole("dialog", { name: "Go 详情" });
+  const remove = screen.getByRole("button", { name: "卸载 1.27.3" });
+  assert.equal(remove.disabled, false);
+  await userEvent.setup().click(remove);
+  assert.match(dialog.textContent, /卸载 1\.27\.3？/);
+  await userEvent.setup().click(screen.getByRole("button", { name: "确认" }));
+  assert.deepEqual(target, { version: "1.27.3", formula: "go" });
+});
+
+test("indeterminate progress stays a single stable track across remounts", async () => {
+  const item = SOFTWARE.find(entry => entry.id === "go");
+  const versions = [versionRow({ version: "1.27.3", installable: true })];
+  const task = { jobId: 2, softwareId: "go", version: "1.27.3", action: "install", stage: "installing", message: "正在安装…", percent: null };
+  for (let index = 0; index < 5; index += 1) {
+    const view = render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, versions, task }));
+    const dialog = await screen.findByRole("dialog", { name: "Go 详情" });
+    const track = dialog.querySelector(".indeterminate");
+    assert.ok(track);
+    assert.equal(track.children.length, 0);
+    view.unmount();
+  }
+});
+
 test("install progress is per version and does not invent a percentage", async () => {
   const item = SOFTWARE.find(entry => entry.id === "go");
   const versions = [versionRow({ version: "1.27.3", installable: true })];
@@ -231,6 +259,7 @@ test("install progress is per version and does not invent a percentage", async (
   const dialog = await screen.findByRole("dialog", { name: "Go 详情" });
   assert.match(dialog.textContent, /正在安装 1\.27\.3…/);
   assert.ok(dialog.querySelector(".indeterminate"));
+  assert.equal(dialog.querySelector(".indeterminate").children.length, 0);
   assert.equal(dialog.textContent.includes("%"), false);
   assert.equal(screen.getByRole("button", { name: "安装 1.27.3" }).disabled, true);
   cleanup();
@@ -273,7 +302,8 @@ test("reduced motion opens the card at its final geometry and closes without wai
 test("app starts with the full grid, filters by search, and never fabricates installed state", async () => {
   const { default: App } = await import("../src/App.tsx");
   render(React.createElement(App));
-  await screen.findByRole("heading", { name: "选择你的开发工具" });
+  await waitFor(() => assert.ok(document.querySelector(".orb-grid")));
+  assert.equal(screen.queryByText("选择你的开发工具"), null);
   assert.equal(screen.getAllByRole("button").filter(button => button.getAttribute("aria-label") && SOFTWARE.some(item => item.name === button.getAttribute("aria-label"))).length, 14);
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: "搜索软件" }));

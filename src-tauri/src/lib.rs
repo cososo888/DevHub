@@ -137,8 +137,7 @@ fn version_catalog(state: &AppState, software_id: &str) -> VersionCatalog {
     let Some(snapshot) = snapshot_clone(state) else {
         return VersionCatalog { software_id: software_id.into(), versions: Vec::new(), error: Some("尚未完成本机检测，请先刷新".into()), homebrew_available: false };
     };
-    let ownership = state.db.lock().ok().and_then(|connection| storage::active_for(&connection, software_id));
-    versions::catalog(software_id, &snapshot, ownership)
+    versions::catalog(software_id, &snapshot)
 }
 
 #[tauri::command]
@@ -239,12 +238,26 @@ fn start_homebrew_install(app: AppHandle, state: State<AppState>, software_id: S
 }
 
 #[tauri::command]
-fn start_homebrew_uninstall(app: AppHandle, state: State<AppState>, software_id: String, version: String) -> Result<u64, String> {
+fn start_homebrew_uninstall(app: AppHandle, state: State<AppState>, software_id: String, version: String, formula: Option<String>) -> Result<u64, String> {
     let ownership = state.db.lock().ok().and_then(|connection| storage::active_for_version(&connection, &software_id, &version));
-    let Some(ownership) = ownership else {
-        return Err("该版本不是 DevHub 本次安装，不能自动卸载".into());
+    let package = if let Some(record) = &ownership {
+        record.package.clone()
+    } else {
+        let Some(formula) = formula else {
+            return Err("没有找到该版本可安全卸载的安装方式".into());
+        };
+        if !homebrew::formulas_for(&software_id).contains(&formula.as_str()) {
+            return Err("该安装方式不在允许的安全卸载范围内".into());
+        }
+        let snapshot = snapshot_clone(&state).ok_or_else(|| "尚未完成本机检测".to_string())?;
+        let cellar = format!("/Cellar/{}/", formula);
+        let opt = format!("/opt/{}/", formula);
+        let target = snapshot.instances.iter().any(|item| item.software_id == software_id && item.version.as_deref() == Some(version.as_str()) && (item.path.contains(&cellar) || item.path.contains(&opt)));
+        if !target {
+            return Err("没有找到该版本对应的 Homebrew 安装实例".into());
+        }
+        formula
     };
-    let package = ownership.package.clone();
     let info = homebrew::info(&package)?;
     if info.installed.is_empty() {
         return Err("该软件当前没有可卸载的安装".into());
@@ -280,8 +293,10 @@ fn start_homebrew_uninstall(app: AppHandle, state: State<AppState>, software_id:
             emit_finished(&app, job_id, &software_id, &version, "uninstall", false, "卸载命令结束，但仍检测到 Homebrew 安装；未记录成功", &output, Some(Verification { verified: false, instance_path: None, version: None, health: None, system_git_available: if software_id == "git" { Some(system) } else { None } }));
             return;
         }
-        if let Ok(connection) = state.db.lock() {
-            let _ = storage::mark_uninstalled(&connection, ownership.id, now_ms());
+        if let Some(ownership) = ownership {
+            if let Ok(connection) = state.db.lock() {
+                let _ = storage::mark_uninstalled(&connection, ownership.id, now_ms());
+            }
         }
         let success = software_id != "git" || system;
         let message = if software_id == "git" {
