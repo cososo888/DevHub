@@ -51,9 +51,9 @@ export function anchoredCard(origin: OrbOrigin, width: number, height: number, v
   return { left, top, width: w, height: natural };
 }
 
-function DetailBody({ item }: { item: Software }) {
+function DetailBody({ item, interactive = false }: { item: Software; interactive?: boolean }) {
   return (
-    <div className="detail-inner">
+    <div className="detail-inner" tabIndex={interactive ? 0 : undefined} role={interactive ? "region" : undefined} aria-label={interactive ? `${item.name} 详情内容` : undefined}>
       <header className="detail-head">
         <span className="detail-logo" style={{ "--orb-accent": item.accent } as CSSProperties}><SoftwareLogo id={item.id} name={item.name} /></span>
         <div className="detail-title">
@@ -107,6 +107,7 @@ export function DetailOverlay({ item, origin, onClose }: { item: Software; origi
   const [entered, setEntered] = useState(false);
   const measure = useRef<HTMLDivElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
+  const card = useRef<HTMLElement>(null);
   const timer = useRef<number | null>(null);
 
   const close = useCallback(() => {
@@ -135,7 +136,25 @@ export function DetailOverlay({ item, origin, onClose }: { item: Software; origi
     document.body.style.overflow = "hidden";
     closeButton.current?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { event.preventDefault(); close(); }
+      if (event.key === "Escape") { event.preventDefault(); close(); return; }
+      const target = event.target;
+      if (target instanceof HTMLElement && target.closest("input, select, textarea")) return;
+      const content = card.current?.querySelector<HTMLElement>(".detail-inner");
+      if (!content || content.scrollHeight <= content.clientHeight) return;
+      const page = Math.max(40, content.clientHeight * 0.85);
+      if (event.key === "PageDown" || event.key === "ArrowDown") {
+        content.scrollBy({ top: event.key === "PageDown" ? page : 40 });
+        event.preventDefault();
+      } else if (event.key === "PageUp" || event.key === "ArrowUp") {
+        content.scrollBy({ top: event.key === "PageUp" ? -page : -40 });
+        event.preventDefault();
+      } else if (event.key === "Home") {
+        content.scrollTo({ top: 0 });
+        event.preventDefault();
+      } else if (event.key === "End") {
+        content.scrollTo({ top: content.scrollHeight });
+        event.preventDefault();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => {
@@ -156,9 +175,9 @@ export function DetailOverlay({ item, origin, onClose }: { item: Software; origi
     <div className="detail-layer">
       <div className="detail-catcher" onClick={close} aria-hidden="true" />
       <div ref={measure} className="detail-measure" style={{ width }} aria-hidden="true"><DetailBody item={item} /></div>
-      <section className={`morph-card${entered ? " open" : ""}`} style={geometry} role="dialog" aria-modal="true" aria-label={`${item.name} 详情`} onClick={event => event.stopPropagation()}>
+      <section ref={card} className={`morph-card${entered ? " open" : ""}`} style={geometry} role="dialog" aria-modal="true" aria-label={`${item.name} 详情`} onClick={event => event.stopPropagation()}>
         <button ref={closeButton} type="button" className="detail-close" aria-label="关闭详情" onClick={close}>×</button>
-        <DetailBody item={item} />
+        <DetailBody item={item} interactive />
       </section>
     </div>,
     document.querySelector(".app") ?? document.body

@@ -47,7 +47,7 @@ registerHooks({
 });
 
 const React = (await import("react")).default;
-const { render, screen, cleanup, waitFor } = await import("@testing-library/react");
+const { render, screen, cleanup, waitFor, fireEvent } = await import("@testing-library/react");
 const userEvent = (await import("@testing-library/user-event")).default;
 const { OrbGrid } = await import("../src/components/OrbGrid.tsx");
 const { Toolbar } = await import("../src/components/Toolbar.tsx");
@@ -157,6 +157,24 @@ test("anchored geometry keeps the orb as a corner and stays inside the viewport"
   assert.equal(right.top, 147);
   assert.equal(right.left + right.width, 1008);
   assert.ok(right.top + right.height <= 713 - 16);
+});
+
+test("detail keeps keyboard scrolling while the scrollbar is visually hidden", async () => {
+  const item = SOFTWARE.find(entry => entry.id === "git");
+  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {} }));
+  const dialog = await screen.findByRole("dialog", { name: "Git 详情" });
+  const inner = dialog.querySelector(".detail-inner");
+  assert.equal(inner.tabIndex, 0);
+  Object.defineProperty(inner, "clientHeight", { value: 300, configurable: true });
+  Object.defineProperty(inner, "scrollHeight", { value: 900, configurable: true });
+  let moved = null;
+  let ended = null;
+  inner.scrollBy = options => { moved = options.top; };
+  inner.scrollTo = options => { ended = options.top; };
+  fireEvent.keyDown(window, { key: "PageDown" });
+  assert.ok(moved > 0);
+  fireEvent.keyDown(window, { key: "End" });
+  assert.equal(ended, 900);
 });
 
 test("reduced motion opens the card at its final geometry and closes without waiting", async () => {

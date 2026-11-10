@@ -1,7 +1,7 @@
 # DevHub V2 · 第一阶段验收报告
 
 日期：2026-11-10（含当日 UI 修订）
-状态：**第一阶段 UI 修订完成，等待用户再次验收；未进入第二阶段。**
+状态：**第一阶段 UI 修订与滚动条修复完成，等待用户再次验收；未进入第二阶段。**
 
 ## 1. 独立项目与隔离
 
@@ -52,11 +52,12 @@
 
 - `npx tsc --noEmit`：通过。
 - `npm run build`：通过。
-- `npm run test:ui`：**9 passed / 0 failed**。
+- `npm run test:ui`：**10 passed / 0 failed**。
   - 目录唯一性、分类、首批 Git/Node 标记；
   - 圆形网格数量、已安装 class、origin 回传；
   - 搜索展开/输入/关闭清空、分类切换、主题选择；
   - 详情卡从 90px 圆形开始，展开到 380px、24px 圆角；Esc 关闭时宽度回到 90px；
+  - 隐藏滚动条后，详情内容仍可通过 PageDown/End 等键盘操作滚动；
   - 透明 catcher 存在且不存在 `.detail-backdrop`；
   - 单列区块顺序、未安装时不出现“安装路径”、按钮禁用；
   - `anchoredCard` 的上左、下右、上右三个方向/边缘场景均不越界；
@@ -64,13 +65,22 @@
   - App 搜索过滤且不出现“已安装”虚假文案。
 - 原生 macOS 应用：`src-tauri/target/debug/bundle/macos/DevHub V2.app`（28.19 MiB）已重新构建并实际启动，窗口 1200×800。
 
+
+## 3.1 详情卡滚动条修复
+
+- 实际来源：`.detail-inner` 旧规则显式设置了 `scrollbar-width: thin` 和 `::-webkit-scrollbar { width: 6px; }`，内容溢出时显示右侧滚动条。
+- 修复：`scrollbar-width: none`、`-ms-overflow-style: none`，WebKit 滚动条宽度设为 0；**保留 `overflow-y: auto`**，不裁切内容。
+- 键盘：详情内容容器设为可聚焦（`tabIndex=0`），并增加 PageUp/PageDown/Arrow/Home/End 滚动处理；鼠标滚轮和触控板使用原生滚动。
+- 浏览器实测（1200×500 视口，强制溢出）：`scrollbarWidth=0`、`overflowY=auto`，内容 `scrollHeight=522` / `clientHeight=466`；滚轮后 `scrollTop=56`，PageDown 从顶部同样到 56；没有内容被裁切。
+- 1200×800 正常视口：`scrollbarWidth=0`，详情卡尺寸/位置/动画/单列布局均未改变。
+
 ## 4. 截图
 
 详情截图按原生窗口内容高度（1200×800 视口）采集。
 
 - `docs/screenshots/phase1-grid-native.png`：**真实 macOS 原生窗口**，圆形网格。
 - `docs/screenshots/phase1-grid-light.png`：1200×800 浅色网格。
-- `docs/screenshots/phase1-detail-light.png`：浅色主题，Python 圆形左上角锚点展开（卡片 380×522）。
+- `docs/screenshots/phase1-detail-light.png`：浅色主题，Python 圆形左上角锚点展开（卡片 380×522，无可见滚动条）。
 - `docs/screenshots/phase1-detail-dark.png`：深色主题，Python 圆形锚点展开。
 - `docs/screenshots/phase1-detail-edge.png`：右下角 IntelliJ IDEA，卡片向左上展开且不越界。
 - `docs/screenshots/phase1-grid-dark.png`：深色网格。
