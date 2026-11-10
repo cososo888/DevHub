@@ -6,6 +6,8 @@ import type { OrbOrigin } from "./components/DetailOverlay";
 import { OrbGrid } from "./components/OrbGrid";
 import { Toolbar } from "./components/Toolbar";
 import { useDetection } from "./hooks/useDetection";
+import { useHomebrewPreview, useHomebrewUninstallPreview } from "./hooks/useHomebrewPreview";
+import { useInstallTask } from "./hooks/useInstallTask";
 import { useTheme } from "./hooks/useTheme";
 import { desktop } from "./lib/ipc";
 import type { AppStatus, SoftwareInstance } from "./lib/ipc";
@@ -18,6 +20,7 @@ function formatUpdated(value: number | null | undefined) {
 export default function App() {
   const { theme, setTheme } = useTheme();
   const { snapshot, refreshing, error, refresh } = useDetection();
+  const install = useInstallTask();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("全部");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -51,8 +54,13 @@ export default function App() {
       .sort((a, b) => Number(installed.has(b.id)) - Number(installed.has(a.id)) || b.popularity - a.popularity);
   }, [category, query, installed]);
 
+  const selectedId = selected?.item.id ?? null;
   const selectedInstances = selected ? instancesBySoftware.get(selected.item.id) ?? [] : [];
   const homebrew = snapshot?.homebrew ?? null;
+  const previewKey = install.result?.jobId ?? 0;
+  const installPreview = useHomebrewPreview(selectedId, previewKey);
+  const uninstallPreview = useHomebrewUninstallPreview(selectedId, previewKey);
+  const busyIds = useMemo(() => new Set(install.task ? [install.task.softwareId] : []), [install.task]);
   const cacheState = !snapshot
     ? refreshing ? "正在读取本机环境…" : "尚未检测"
     : snapshot.stale
@@ -80,7 +88,7 @@ export default function App() {
           <div>
             <p className="eyebrow">DEVELOPMENT ENVIRONMENT</p>
             <h1>选择你的开发工具</h1>
-            <p className="sub">点击圆形查看本机真实检测结果；第二阶段只检测，不安装或修改系统。</p>
+            <p className="sub">点击圆形查看真实检测结果；安装和卸载只在你确认后通过 Homebrew 执行。</p>
             <p className={`detection-line${error ? " error" : ""}`} role="status">
               {cacheState}
               {homebrew ? (homebrew.available ? ` · Homebrew ${homebrew.version ?? "可用"}` : " · 未检测到 Homebrew") : ""}
@@ -95,14 +103,14 @@ export default function App() {
                 <path d="M20 5v6h-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
-            <span className="phase-pill">{status ? `Phase ${status.phase} · 检测` : "Phase 2 · 检测"}</span>
+            <span className="phase-pill">{status ? `Phase ${status.phase} · 安装` : "Phase 3 · 安装"}</span>
           </div>
         </div>
         {items.length > 0
-          ? <OrbGrid items={items} installed={installed} onOpen={(item, origin) => setSelected({ item, origin })} />
+          ? <OrbGrid items={items} installed={installed} installing={busyIds} onOpen={(item, origin) => setSelected({ item, origin })} />
           : <div className="empty">没有匹配的软件，换个关键词或分类试试。</div>}
         <p className="footnote">
-          {status ? `${status.product} · Phase ${status.phase}` : "DevHub V2 · Phase 2"} · 检测只读，不修改系统
+          {status ? `${status.product} · Phase ${status.phase}` : "DevHub V2 · Phase 3"} · Homebrew 操作需确认，不修改 PATH
           {homebrew?.available && homebrew.prefix ? ` · Homebrew ${homebrew.prefix}` : ""}
         </p>
       </main>
@@ -117,6 +125,17 @@ export default function App() {
           homebrew={homebrew}
           errors={snapshot?.errors ?? []}
           refreshedAt={snapshot?.refreshedAt ?? null}
+          installPreview={installPreview.preview}
+          installPreviewLoading={installPreview.loading}
+          installPreviewError={installPreview.error}
+          uninstallPreview={uninstallPreview.preview}
+          uninstallPreviewLoading={uninstallPreview.loading}
+          uninstallPreviewError={uninstallPreview.error}
+          installTask={install.task && install.task.softwareId === selectedId ? install.task : null}
+          installResult={install.result && install.result.softwareId === selectedId ? install.result : null}
+          actionError={install.error}
+          onInstall={() => { if (selected) void install.install(selected.item.id); }}
+          onUninstall={() => { if (selected) void install.uninstall(selected.item.id); }}
           onClose={() => setSelected(null)}
         />
       )}

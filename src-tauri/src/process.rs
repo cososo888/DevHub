@@ -46,6 +46,10 @@ fn kill_group(child: &mut std::process::Child) {
 }
 
 pub fn run(program: &Path, arguments: &[&str], timeout: Duration, limit: usize) -> Result<Output, String> {
+    run_with_env(program, arguments, timeout, limit, &[])
+}
+
+pub fn run_with_env(program: &Path, arguments: &[&str], timeout: Duration, limit: usize, extra_env: &[(&str, &str)]) -> Result<Output, String> {
     if !program.is_absolute() || !program.is_file() {
         return Err("检测程序不是固定的绝对文件".into());
     }
@@ -59,7 +63,11 @@ pub fn run(program: &Path, arguments: &[&str], timeout: Duration, limit: usize) 
         .env("HOME", home)
         .env("LANG", "C")
         .env("LC_ALL", "C")
-        .env("TERM", "dumb")
+        .env("TERM", "dumb");
+    for (key, value) in extra_env {
+        command.env(key, value);
+    }
+    command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

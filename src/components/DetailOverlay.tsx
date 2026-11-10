@@ -4,7 +4,9 @@ import { createPortal } from "react-dom";
 import type { Software } from "../catalog";
 import { STAGE_LABEL } from "../catalog";
 import { useReducedMotion } from "../hooks/useReducedMotion";
-import type { DetectionError, Health, HomebrewStatus, SoftwareInstance } from "../lib/ipc";
+import type { DetectionError, Health, HomebrewStatus, InstallFinished, InstallPreview, InstallProgress, SoftwareInstance, UninstallPreview } from "../lib/ipc";
+import { HomebrewPanel } from "./HomebrewPanel";
+import type { ConfirmAction } from "./HomebrewPanel";
 import { SoftwareLogo } from "./SoftwareLogo";
 
 export interface OrbOrigin {
@@ -77,7 +79,7 @@ function sourceLabels(instances: SoftwareInstance[]) {
   return [...new Set(labels)];
 }
 
-function DetailBody({ item, instances, detected, refreshing, stale, homebrew, errors, refreshedAt, interactive = false }: {
+function DetailBody({ item, instances, detected, refreshing, stale, homebrew, errors, refreshedAt, installPreview, installPreviewLoading, installPreviewError, uninstallPreview, uninstallPreviewLoading, uninstallPreviewError, installTask, installResult, actionError, confirm, onConfirm, onInstall, onUninstall, interactive = false }: {
   item: Software;
   instances: SoftwareInstance[];
   detected: boolean;
@@ -86,6 +88,19 @@ function DetailBody({ item, instances, detected, refreshing, stale, homebrew, er
   homebrew: HomebrewStatus | null | undefined;
   errors: DetectionError[];
   refreshedAt: number | null;
+  installPreview: InstallPreview | null;
+  installPreviewLoading: boolean;
+  installPreviewError: string | null;
+  uninstallPreview: UninstallPreview | null;
+  uninstallPreviewLoading: boolean;
+  uninstallPreviewError: string | null;
+  installTask: InstallProgress | null;
+  installResult: InstallFinished | null;
+  actionError: string | null;
+  confirm: ConfirmAction;
+  onConfirm: (action: ConfirmAction) => void;
+  onInstall: () => void;
+  onUninstall: () => void;
   interactive?: boolean;
 }) {
   const installed = instances.length > 0;
@@ -144,7 +159,7 @@ function DetailBody({ item, instances, detected, refreshing, stale, homebrew, er
 
       <section className="detail-block">
         <h3>可安装版本</h3>
-        <select disabled aria-label="选择版本"><option>版本列表将在第三阶段接入</option></select>
+        <select disabled aria-label="选择版本"><option>Homebrew 当前版本（见安装计划）</option></select>
       </section>
 
       <section className="detail-block">
@@ -152,12 +167,24 @@ function DetailBody({ item, instances, detected, refreshing, stale, homebrew, er
         <p>{installed ? sourceLabels(instances).join("、") : item.source}</p>
       </section>
 
-      <div className="detail-actions">
-        <button type="button" className="primary" disabled>安装（第三阶段接入）</button>
-        <button type="button" disabled>卸载</button>
-      </div>
+      <HomebrewPanel
+        softwareId={item.id}
+        preview={installPreview}
+        previewLoading={installPreviewLoading}
+        previewError={installPreviewError}
+        uninstallPreview={uninstallPreview}
+        uninstallLoading={uninstallPreviewLoading}
+        uninstallError={uninstallPreviewError}
+        task={installTask}
+        result={installResult}
+        actionError={actionError}
+        confirm={confirm}
+        onConfirm={onConfirm}
+        onInstall={onInstall}
+        onUninstall={onUninstall}
+      />
 
-      <p className="detail-note">第二阶段仅检测本机环境；不会安装、卸载或修改系统。</p>
+      <p className="detail-note">第三阶段只通过已确认的 Homebrew 操作安装或卸载；不会修改 PATH、Shell 或其他来源的软件。</p>
 
       <details className="detail-advanced">
         <summary>高级详情</summary>
@@ -181,7 +208,7 @@ function DetailBody({ item, instances, detected, refreshing, stale, homebrew, er
   );
 }
 
-export function DetailOverlay({ item, origin, onClose, instances = [], detected = false, refreshing = false, stale = false, homebrew = null, errors = [], refreshedAt = null }: {
+export function DetailOverlay({ item, origin, onClose, instances = [], detected = false, refreshing = false, stale = false, homebrew = null, errors = [], refreshedAt = null, installPreview = null, installPreviewLoading = false, installPreviewError = null, uninstallPreview = null, uninstallPreviewLoading = false, uninstallPreviewError = null, installTask = null, installResult = null, actionError = null, onInstall, onUninstall }: {
   item: Software;
   origin: OrbOrigin;
   onClose: () => void;
@@ -192,11 +219,23 @@ export function DetailOverlay({ item, origin, onClose, instances = [], detected 
   homebrew?: HomebrewStatus | null;
   errors?: DetectionError[];
   refreshedAt?: number | null;
+  installPreview?: InstallPreview | null;
+  installPreviewLoading?: boolean;
+  installPreviewError?: string | null;
+  uninstallPreview?: UninstallPreview | null;
+  uninstallPreviewLoading?: boolean;
+  uninstallPreviewError?: string | null;
+  installTask?: InstallProgress | null;
+  installResult?: InstallFinished | null;
+  actionError?: string | null;
+  onInstall?: () => void;
+  onUninstall?: () => void;
 }) {
   const reduced = useReducedMotion();
   const [width] = useState(() => Math.min(CARD_WIDTH, window.innerWidth - PAGE_PADDING * 2));
   const [target, setTarget] = useState(() => anchoredCard(origin, width, CARD_MIN_HEIGHT));
   const [entered, setEntered] = useState(false);
+  const [confirm, setConfirm] = useState<ConfirmAction>(null);
   const measure = useRef<HTMLDivElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const card = useRef<HTMLElement>(null);
@@ -221,7 +260,7 @@ export function DetailOverlay({ item, origin, onClose, instances = [], detected 
       cancelAnimationFrame(first);
       if (second) cancelAnimationFrame(second);
     };
-  }, [origin.left, origin.top, origin.width, origin.height, width, reduced, instances.length, detected, refreshing, stale, instances.map(instance => `${instance.path}:${instance.version}:${instance.health}`).join("|")]);
+  }, [origin.left, origin.top, origin.width, origin.height, width, reduced, instances.length, detected, refreshing, stale, confirm, installPreview, uninstallPreview, installTask, installResult, actionError, instances.map(instance => `${instance.path}:${instance.version}:${instance.health}`).join("|")]);
 
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -266,10 +305,10 @@ export function DetailOverlay({ item, origin, onClose, instances = [], detected 
   return createPortal(
     <div className="detail-layer">
       <div className="detail-catcher" onClick={close} aria-hidden="true" />
-      <div ref={measure} className="detail-measure" style={{ width }} aria-hidden="true"><DetailBody item={item} instances={instances} detected={detected} refreshing={refreshing} stale={stale} homebrew={homebrew} errors={errors} refreshedAt={refreshedAt} /></div>
+      <div ref={measure} className="detail-measure" style={{ width }} aria-hidden="true"><DetailBody item={item} instances={instances} detected={detected} refreshing={refreshing} stale={stale} homebrew={homebrew} errors={errors} refreshedAt={refreshedAt} installPreview={installPreview} installPreviewLoading={installPreviewLoading} installPreviewError={installPreviewError} uninstallPreview={uninstallPreview} uninstallPreviewLoading={uninstallPreviewLoading} uninstallPreviewError={uninstallPreviewError} installTask={installTask} installResult={installResult} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={() => { setConfirm(null); onInstall?.(); }} onUninstall={() => { setConfirm(null); onUninstall?.(); }} /></div>
       <section ref={card} className={`morph-card${entered ? " open" : ""}`} style={geometry} role="dialog" aria-modal="true" aria-label={`${item.name} 详情`} onClick={event => event.stopPropagation()}>
         <button ref={closeButton} type="button" className="detail-close" aria-label="关闭详情" onClick={close}>×</button>
-        <DetailBody item={item} instances={instances} detected={detected} refreshing={refreshing} stale={stale} homebrew={homebrew} errors={errors} refreshedAt={refreshedAt} interactive />
+        <DetailBody item={item} instances={instances} detected={detected} refreshing={refreshing} stale={stale} homebrew={homebrew} errors={errors} refreshedAt={refreshedAt} installPreview={installPreview} installPreviewLoading={installPreviewLoading} installPreviewError={installPreviewError} uninstallPreview={uninstallPreview} uninstallPreviewLoading={uninstallPreviewLoading} uninstallPreviewError={uninstallPreviewError} installTask={installTask} installResult={installResult} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={() => { setConfirm(null); onInstall?.(); }} onUninstall={() => { setConfirm(null); onUninstall?.(); }} interactive />
       </section>
     </div>,
     document.querySelector(".app") ?? document.body

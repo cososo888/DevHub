@@ -48,3 +48,69 @@ export interface DetectionSnapshot {
 export function desktop<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   return invoke<T>(command, args);
 }
+
+export interface OwnershipView {
+  id: number;
+  status: string;
+  preexisting: boolean;
+  installedAt: number;
+  instancePath: string | null;
+  version: string | null;
+}
+
+export interface InstallPreview {
+  softwareId: string;
+  package: string | null;
+  packageType: string | null;
+  brewAvailable: boolean;
+  brewVersion: string | null;
+  prefix: string | null;
+  formulaVersion: string | null;
+  channel: string;
+  alreadyInstalled: boolean;
+  canInstall: boolean;
+  reason: string | null;
+  dependencies: string[];
+  newDependencies: string[];
+  installedDependencies: string[];
+  ownership: OwnershipView | null;
+}
+
+export interface UninstallPreview {
+  softwareId: string;
+  package: string | null;
+  version: string | null;
+  instancePath: string | null;
+  canUninstall: boolean;
+  reason: string | null;
+  dependents: string[];
+  ownership: OwnershipView | null;
+  warnings: string[];
+}
+
+export interface InstallProgress {
+  jobId: number;
+  softwareId: string;
+  action: "install" | "uninstall";
+  stage: string;
+  message: string;
+  percent: number | null;
+}
+
+export interface Verification {
+  verified: boolean;
+  instancePath: string | null;
+  version: string | null;
+  health: string | null;
+  systemGitAvailable: boolean | null;
+}
+
+export interface InstallFinished {
+  jobId: number;
+  softwareId: string;
+  action: "install" | "uninstall";
+  success: boolean;
+  message: string;
+  output: string;
+  verification: Verification | null;
+}

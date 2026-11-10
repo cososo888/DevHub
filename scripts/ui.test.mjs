@@ -84,6 +84,13 @@ test("circle grid renders every software once and reports the orb origin", async
   assert.ok("width" in opened.origin && "left" in opened.origin);
 });
 
+test("an installing orb exposes an indeterminate busy state", () => {
+  render(React.createElement(OrbGrid, { items: SOFTWARE.slice(0, 2), installed: new Set(), installing: new Set(["node"]), onOpen: () => {} }));
+  const node = screen.getByRole("button", { name: "Node.js" });
+  assert.match(node.className, /is-installing/);
+  assert.equal(node.getAttribute("aria-busy"), "true");
+});
+
 test("toolbar expands search, filters categories, clears on close and exposes themes", async () => {
   function Harness() {
     const [query, setQuery] = React.useState("");
@@ -124,9 +131,9 @@ test("detail card morphs from the orb, explains the disabled phase-one state and
   assert.equal(document.querySelector(".detail-backdrop"), null);
   assert.ok(document.querySelector(".detail-catcher"));
   assert.match(dialog.textContent, /尚未检测/);
-  assert.match(dialog.textContent, /不会安装、卸载或修改系统/);
+  assert.match(dialog.textContent, /不会修改 PATH/);
   assert.equal(dialog.textContent.includes("安装路径"), false);
-  assert.deepEqual([...dialog.querySelectorAll(".detail-block h3")].map(node => node.textContent), ["已安装版本", "可安装版本", "安装来源"]);
+  assert.deepEqual([...dialog.querySelectorAll(".detail-block h3")].map(node => node.textContent), ["已安装版本", "可安装版本", "安装来源", "Homebrew 安装"]);
   assert.equal(screen.getByRole("button", { name: /安装/ }).disabled, true);
   assert.equal(screen.getByRole("button", { name: "卸载" }).disabled, true);
   assert.equal(screen.getByRole("combobox", { name: "选择版本" }).disabled, true);
@@ -207,6 +214,48 @@ test("detail renders real detection instances, paths and health", async () => {
   assert.equal(screen.getByRole("button", { name: "卸载" }).disabled, true);
 });
 
+test("Git install preview requires an explicit confirmation before invoking Homebrew", async () => {
+  const item = SOFTWARE.find(entry => entry.id === "git");
+  let installed = 0;
+  const preview = {
+    softwareId: "git", package: "git", packageType: "formula", brewAvailable: true,
+    brewVersion: "7.0.12", prefix: "/opt/homebrew", formulaVersion: "2.51.0",
+    channel: "Homebrew 当前版本", alreadyInstalled: false, canInstall: true, reason: null,
+    dependencies: ["gettext", "pcre2"], newDependencies: ["pcre2"], installedDependencies: ["gettext"],
+    ownership: null
+  };
+  render(React.createElement(DetailOverlay, {
+    item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {},
+    detected: true, installPreview: preview, onInstall: () => { installed += 1; }
+  }));
+  const dialog = await screen.findByRole("dialog", { name: "Git 详情" });
+  assert.match(dialog.textContent, /git 2\.51\.0/);
+  assert.match(dialog.textContent, /pcre2/);
+  const install = screen.getByRole("button", { name: "安装" });
+  assert.equal(install.disabled, false);
+  await userEvent.setup().click(install);
+  assert.match(dialog.textContent, /确认安装 Homebrew Git/);
+  assert.equal(installed, 0);
+  await userEvent.setup().click(screen.getByRole("button", { name: "确认安装" }));
+  assert.equal(installed, 1);
+});
+
+test("external Homebrew Git cannot be uninstalled by DevHub", async () => {
+  const item = SOFTWARE.find(entry => entry.id === "git");
+  const preview = {
+    softwareId: "git", package: "git", packageType: "formula", brewAvailable: true,
+    brewVersion: "7.0.12", prefix: "/opt/homebrew", formulaVersion: "2.51.0",
+    channel: "Homebrew 当前版本", alreadyInstalled: true, canInstall: false,
+    reason: "Homebrew 已安装该包，DevHub 不会重复安装或自动接管",
+    dependencies: [], newDependencies: [], installedDependencies: [], ownership: null
+  };
+  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, detected: true, installPreview: preview }));
+  const dialog = await screen.findByRole("dialog", { name: "Git 详情" });
+  assert.match(dialog.textContent, /外部 Homebrew 安装/);
+  assert.equal(screen.getByRole("button", { name: "安装" }).disabled, true);
+  assert.equal(screen.getByRole("button", { name: "卸载" }).disabled, true);
+});
+
 test("detail shows uninstalled only after a completed detection", async () => {
   const item = SOFTWARE.find(entry => entry.id === "go");
   render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, detected: true, refreshing: false, stale: false }));
@@ -214,6 +263,55 @@ test("detail shows uninstalled only after a completed detection", async () => {
   assert.match(dialog.textContent, /未安装/);
   assert.match(dialog.textContent, /未检测到本机安装/);
   assert.equal(dialog.textContent.includes("安装路径"), false);
+});
+
+test("managed Homebrew Git asks for uninstall confirmation and shows dependency safety", async () => {
+  const item = SOFTWARE.find(entry => entry.id === "git");
+  let uninstalled = 0;
+  const uninstallPreview = {
+    softwareId: "git", package: "git", version: "2.51.0", instancePath: "/opt/homebrew/bin/git",
+    canUninstall: true, reason: null, dependents: [],
+    ownership: { id: 1, status: "success", preexisting: false, installedAt: 1, instancePath: "/opt/homebrew/bin/git", version: "2.51.0" },
+    warnings: ["只卸载 Homebrew formula；不会执行 --zap、cleanup 或删除用户数据", "其他来源的软件（例如系统 Git）不会被修改"]
+  };
+  render(React.createElement(DetailOverlay, {
+    item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {},
+    detected: true, uninstallPreview, onUninstall: () => { uninstalled += 1; }
+  }));
+  const dialog = await screen.findByRole("dialog", { name: "Git 详情" });
+  const remove = screen.getByRole("button", { name: "卸载" });
+  assert.equal(remove.disabled, false);
+  await userEvent.setup().click(remove);
+  assert.match(dialog.textContent, /确认卸载 Homebrew Git/);
+  assert.match(dialog.textContent, /系统 Git/);
+  assert.equal(uninstalled, 0);
+  await userEvent.setup().click(screen.getByRole("button", { name: "确认卸载" }));
+  assert.equal(uninstalled, 1);
+});
+
+test("install progress is indeterminate and install success shows verified version", async () => {
+  const item = SOFTWARE.find(entry => entry.id === "git");
+  const preview = {
+    softwareId: "git", package: "git", packageType: "formula", brewAvailable: true,
+    brewVersion: "7.0.12", prefix: "/opt/homebrew", formulaVersion: "2.56.0",
+    channel: "Homebrew 当前版本", alreadyInstalled: false, canInstall: true, reason: null,
+    dependencies: [], newDependencies: [], installedDependencies: [], ownership: null
+  };
+  const task = { jobId: 7, softwareId: "git", action: "install", stage: "installing", message: "正在执行 Homebrew 安装。", percent: null };
+  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, detected: true, installPreview: preview, installTask: task }));
+  const dialog = await screen.findByRole("dialog", { name: "Git 详情" });
+  assert.match(dialog.textContent, /正在执行 Homebrew 安装/);
+  assert.match(dialog.textContent, /未提供可靠百分比/);
+  assert.ok(dialog.querySelector(".indeterminate"));
+  assert.equal(screen.getByRole("button", { name: "安装" }).disabled, true);
+  cleanup();
+
+  const result = { jobId: 7, softwareId: "git", action: "install", success: true, message: "Homebrew Git 已安装并通过版本验证", output: "==> Pouring git", verification: { verified: true, instancePath: "/opt/homebrew/bin/git", version: "2.56.0", health: "ok", systemGitAvailable: true } };
+  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, detected: true, installPreview: preview, installResult: result }));
+  const done = await screen.findByRole("dialog", { name: "Git 详情" });
+  assert.match(done.textContent, /操作完成/);
+  assert.match(done.textContent, /已验证版本 2.56.0/);
+  assert.match(done.textContent, /Homebrew 输出/);
 });
 
 test("reduced motion opens the card at its final geometry and closes without waiting", async () => {

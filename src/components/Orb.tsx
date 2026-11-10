@@ -3,12 +3,13 @@ import type { Software } from "../catalog";
 import { SoftwareLogo } from "./SoftwareLogo";
 import type { OrbOrigin } from "./DetailOverlay";
 
-export function Orb({ item, installed = false, onOpen }: { item: Software; installed?: boolean; onOpen: (item: Software, origin: OrbOrigin) => void }) {
+export function Orb({ item, installed = false, installing = false, onOpen }: { item: Software; installed?: boolean; installing?: boolean; onOpen: (item: Software, origin: OrbOrigin) => void }) {
   return (
     <button
       type="button"
-      className={`orb${installed ? " is-installed" : ""}`}
+      className={`orb${installed ? " is-installed" : ""}${installing ? " is-installing" : ""}`}
       aria-label={item.name}
+      aria-busy={installing || undefined}
       onClick={event => onOpen(item, event.currentTarget.getBoundingClientRect())}
     >
       <span className="orb-circle" style={{ "--orb-accent": item.accent } as CSSProperties}>

@@ -1,0 +1,25 @@
+{
+  "softwareId": "git",
+  "package": "git",
+  "packageType": "formula",
+  "brewAvailable": true,
+  "brewVersion": "7.0.12",
+  "prefix": "/opt/homebrew",
+  "formulaVersion": "2.56.0",
+  "channel": "Homebrew 当前版本",
+  "alreadyInstalled": false,
+  "canInstall": true,
+  "reason": null,
+  "dependencies": [
+    "curl",
+    "pcre2",
+    "gettext"
+  ],
+  "newDependencies": [
+    "curl",
+    "pcre2",
+    "gettext"
+  ],
+  "installedDependencies": [],
+  "ownership": null
+}
