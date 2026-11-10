@@ -7,10 +7,9 @@ import { OrbGrid } from "./components/OrbGrid";
 import { Toolbar } from "./components/Toolbar";
 import { useDetection } from "./hooks/useDetection";
 import { useInstallTask } from "./hooks/useInstallTask";
-import { useSoftwareVersions } from "./hooks/useSoftwareVersions";
 import { useTheme } from "./hooks/useTheme";
 import { desktop } from "./lib/ipc";
-import type { AppStatus, SoftwareInstance } from "./lib/ipc";
+import type { AppStatus, PackagePlan, SoftwareInstance } from "./lib/ipc";
 
 function formatUpdated(value: number | null | undefined) {
   if (!value) return "尚未检测";
@@ -26,6 +25,15 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [selected, setSelected] = useState<{ item: Software; origin: OrbOrigin } | null>(null);
   const [status, setStatus] = useState<AppStatus | null>(null);
+  const [plans, setPlans] = useState<Record<string, PackagePlan>>({});
+
+  useEffect(() => {
+    let live = true;
+    desktop<PackagePlan[]>("get_software_plans")
+      .then(values => { if (live) setPlans(Object.fromEntries(values.map(value => [value.softwareId, value]))); })
+      .catch(() => { if (live) setPlans({}); });
+    return () => { live = false; };
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -55,7 +63,8 @@ export default function App() {
   }, [category, query, installed]);
 
   const selectedId = selected?.item.id ?? null;
-  const versions = useSoftwareVersions(selectedId, `${install.result?.jobId ?? 0}:${snapshot?.refreshedAt ?? 0}`);
+  const selectedInstances = selectedId ? instancesBySoftware.get(selectedId) ?? [] : [];
+  const selectedPlan = selectedId ? plans[selectedId] ?? null : null;
   const busyIds = useMemo(() => new Set(install.task ? [install.task.softwareId] : []), [install.task]);
   const instanceCount = snapshot?.instances?.length ?? 0;
   const cacheState = !snapshot
@@ -99,6 +108,13 @@ export default function App() {
             <span className="phase-pill">{status ? `Phase ${status.phase} · 安装` : "Phase 3 · 安装"}</span>
           </div>
         </div>
+        {snapshot && !snapshot.homebrew.available && (
+          <div className="setup-hint" role="status">
+            <span>安装功能需要 Homebrew。DevHub 不会静默获取管理员权限。</span>
+            <button type="button" onClick={() => void desktop("open_homebrew_site").catch(() => {})}>查看安装方法</button>
+            <button type="button" onClick={() => void refresh()}>重新检查</button>
+          </div>
+        )}
         {items.length > 0
           ? <OrbGrid items={items} installed={installed} installing={busyIds} sourceId={selectedId} onOpen={(item, origin) => setSelected({ item, origin })} />
           : <div className="empty">没有匹配的软件，换个关键词或分类试试。</div>}
@@ -110,15 +126,14 @@ export default function App() {
         <DetailOverlay
           item={selected.item}
           origin={selected.origin}
-          versions={versions.catalog?.versions ?? []}
-          loading={versions.loading}
-          error={versions.error}
-          onRetry={versions.retry}
+          instances={selectedInstances}
+          plan={selectedPlan}
+          homebrewReady={Boolean(snapshot?.homebrew.available)}
           task={install.task && install.task.softwareId === selectedId ? install.task : null}
           result={install.result && install.result.softwareId === selectedId ? install.result : null}
           actionError={install.error}
-          onInstall={(version) => { if (selected) void install.install(selected.item.id, version); }}
-          onUninstall={(version, formula, instancePath) => { if (selected) void install.uninstall(selected.item.id, version, formula, instancePath); }}
+          onInstall={() => void install.install(selected.item.id)}
+          onUninstall={() => void install.uninstall(selected.item.id)}
           onClose={() => setSelected(null)}
         />
       )}

@@ -49,37 +49,13 @@ export function desktop<T>(command: string, args?: Record<string, unknown>): Pro
   return invoke<T>(command, args);
 }
 
-export interface VersionInstance {
-  source: string;
-  path: string;
-  health: string;
-  managedBy: string;
-  canUninstall: boolean;
-  mechanism: string | null;
-  reason: string | null;
-  rootPath: string | null;
-  manager: string;
-}
-
-export interface VersionRow {
-  version: string;
-  installed: boolean;
-  installable: boolean;
-  canUninstall: boolean;
-  methods: string[];
-  formula: string | null;
-  instances: VersionInstance[];
-  reason: string | null;
-  uninstallReason: string | null;
-  historical: boolean;
-}
-
-export interface VersionCatalog {
+export interface PackagePlan {
   softwareId: string;
-  versions: VersionRow[];
-  error: string | null;
-  homebrewAvailable: boolean;
-  stale: boolean;
+  package: string;
+  kind: "formula" | "cask";
+  installCommand: string;
+  uninstallCommand: string;
+  requirement: string;
 }
 
 export interface InstallProgress {
