@@ -2,6 +2,7 @@ mod detection;
 mod homebrew;
 mod jdk;
 mod process;
+mod rustup;
 mod storage;
 mod versions;
 
@@ -256,6 +257,43 @@ fn start_homebrew_uninstall(app: AppHandle, state: State<AppState>, software_id:
             return Err("没有找到该版本可安全卸载的安装方式".into());
         };
         let snapshot = snapshot_clone(&state).ok_or_else(|| "尚未完成本机检测".to_string())?;
+        if software_id == "rust" {
+            if !snapshot.instances.iter().any(|item| item.software_id == "rust" && item.path == instance_path) {
+                return Err("该 Rust 实例不在当前检测结果中".into());
+            }
+            let info = rustup::analyze(&instance_path);
+            if !info.can_uninstall {
+                return Err(info.reason.unwrap_or_else(|| "该 rustup 工具链不能安全卸载".into()));
+            }
+            if state.install_busy.swap(true, Ordering::SeqCst) {
+                return Err("已有安装或卸载任务正在执行".into());
+            }
+            let job_id = state.job_seq.fetch_add(1, Ordering::SeqCst) + 1;
+            let state = state.inner().clone();
+            let app = app.clone();
+            std::thread::spawn(move || {
+                let _guard = BusyGuard(state.install_busy.clone());
+                emit_progress(&app, job_id, &software_id, &version, "uninstall", "uninstalling", "正在通过 rustup 移除工具链…");
+                if let Err(error) = rustup::uninstall(&instance_path) {
+                    let snapshot = detect_now(&app, &state);
+                    let others = snapshot.instances.iter().any(|item| item.software_id == "rust" && item.path != instance_path);
+                    emit_finished(&app, job_id, &software_id, &version, "uninstall", false, &format!("rustup 卸载失败：{error}"), &error, Some(Verification { verified: false, instance_path: None, version: None, health: None, system_git_available: Some(others) }));
+                    return;
+                }
+                let snapshot = detect_now(&app, &state);
+                let still_present = snapshot.instances.iter().any(|item| item.software_id == "rust" && item.path == instance_path);
+                let others = snapshot.instances.iter().any(|item| item.software_id == "rust" && item.path != instance_path);
+                if still_present {
+                    emit_finished(&app, job_id, &software_id, &version, "uninstall", false, "rustup 命令结束，但仍检测到 Rust；请检查", "", Some(Verification { verified: false, instance_path: None, version: None, health: None, system_git_available: Some(others) }));
+                    return;
+                }
+                if let Ok(connection) = state.db.lock() {
+                    let _ = storage::record_uninstall(&connection, &software_id, &version, "rustup", Some(&instance_path), now_ms());
+                }
+                emit_finished(&app, job_id, &software_id, &version, "uninstall", true, "rustup 工具链已移除；项目文件和 Cargo 缓存未修改", "", Some(Verification { verified: true, instance_path: None, version: None, health: None, system_git_available: Some(others) }));
+            });
+            return Ok(job_id);
+        }
         let exists = snapshot.instances.iter().any(|item| item.software_id == "jdk" && item.path == instance_path);
         if !exists {
             return Err("该 JDK 实例不在当前检测结果中".into());

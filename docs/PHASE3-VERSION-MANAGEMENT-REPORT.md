@@ -42,7 +42,7 @@
 | 用户自有 JDK bundle | 不安装，只识别 | 完整 bundle → 废纸篓 |
 | Homebrew JDK | `brew install` | `brew uninstall` |
 | Conda（Python base） | 未接入 | **不卸载**：base 环境风险 |
-| rustup（Rust） | 未接入新版本 | **不卸载**：当前 active/default 工具链风险 |
+| rustup（Rust） | 未接入新版本 | `rustup toolchain uninstall`，确认后移除当前工具链；项目/Cargo 缓存不动 |
 | 系统 Git/Python/Node 等 | 无 | 保护，不删除 |
 | 官方 Maven/MySQL/app | 无 | 不做文件级删除 |
 | V1 受管 | 无 | 只读 |
@@ -62,7 +62,7 @@
 | Python 3.14.6 | `/opt/anaconda3/...` | Conda base | 否（base 环境） |
 | Python 3.9.6 | `/usr/bin/python3` | macOS | 否 |
 | Maven 3.9.16 | `/usr/local/maven` | 手动安装 | 否（边界/共享不确定） |
-| Rust 1.99.1 | `~/.cargo/bin/rustc` | rustup active/default | 否（当前默认工具链） |
+| Rust 1.99.1 | `~/.cargo/bin/rustc` | rustup active/default | **是**（rustup 管理器；警告后确认） |
 | MySQL/VS Code/IntelliJ | 官方路径 | 官方安装/app | 否 |
 
 所有不可卸载行现在都有**具体管理器原因**，不再统一显示“未识别到可安全卸载的安装管理器”。
@@ -102,7 +102,7 @@ UI 测试覆盖历史行；未来卸载 17.0.19 这类 JDK 时会保留行。**�
 
 1. 官方 Node.js / Python / Go / Maven / Gradle 的全量版本目录和下载安装适配器；未接入 nvm/pyenv/官方归档，避免新增通用下载引擎。
 2. Conda：只识别 base；未实现命名环境卸载。
-3. rustup：只识别 active/default；未实现活动工具链卸载。
+3. Rust 安装目录仍只有 Homebrew 当前版本；rustup 只支持卸载当前 active 工具链，不支持列出全部 rustup 历史版本。
 4. 官方 Node/Python/Maven/MySQL/app 的独立卸载。
 5. Homebrew 外部包的**真实**卸载测试（本机没有外部 Homebrew 开发包）。
 6. JDK 废纸篓内部审计（TCC 拒绝）。
@@ -114,10 +114,10 @@ UI 测试覆盖历史行；未来卸载 17.0.19 这类 JDK 时会保留行。**�
 - `npm run build`：通过
 - `npm run test:ui`：**21 passed / 0 failed**
   - 历史版本行、JDK 实例选择/原因、外部 Homebrew、进度条重挂载、极简详情、主题、搜索、分类。
-- `cargo test --offline --lib`：**16 passed / 0 failed / 2 ignored**
-  - 缓存/历史、JDK 路径、版本合并、归属、固定 brew 命令。
+- `cargo test --offline --lib`：**17 passed / 0 failed / 2 ignored**
+  - 缓存/历史、JDK 路径、rustup 非代理路径拒绝、版本合并、归属、固定 brew 命令。
 - 真实目录只读验证：8 个软件共 15 个可安装版本；6 个软件无目录。
-- 真实 macOS 应用：**31.76 MiB**，已启动；数据库已创建 `version_catalog_cache`、`uninstall_history`。
+- 真实 macOS 应用：**31.79 MiB**，已启动；数据库已创建 `version_catalog_cache`、`uninstall_history`。
 - 本轮未真实安装/卸载，未清空废纸篓，未修改 V1/PATH/Shell。
 
 ## 8. 截图

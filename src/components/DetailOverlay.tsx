@@ -122,7 +122,8 @@ function DetailBody({ item, versions, loading, error, task, result, actionError,
                     </select>
                   )}
                   {confirm.action === "uninstall" && displayPath && <small className="uninstall-target">{displayPath}</small>}
-                  {confirm.action === "uninstall" && !row.formula && <small>若当前 PATH 指向此 JDK，卸载后相关命令会失效。</small>}
+                  {confirm.action === "uninstall" && !row.formula && row.instances.some(instance => instance.manager === "rustup") && <small>将移除当前 rustup 工具链，rustc/cargo 会暂时不可用；项目文件与 Cargo 缓存不改动。</small>}
+                  {confirm.action === "uninstall" && !row.formula && !row.instances.some(instance => instance.manager === "rustup") && <small>若当前 PATH 指向此 JDK，卸载后相关命令会失效。</small>}
                   {confirm.action === "uninstall" && <small>其他来源的同名版本不会被修改；确认后才会执行。</small>}
                   <div className="row-confirm-actions">
                     <button type="button" className="primary" disabled={confirm.action === "uninstall" && !row.formula && candidates.length > 1 && !selectedInstance} onClick={() => {

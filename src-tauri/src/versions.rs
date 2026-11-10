@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use crate::detection::DetectionSnapshot;
 use crate::homebrew;
 use crate::jdk;
+use crate::rustup;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -121,26 +122,25 @@ pub fn catalog(software_id: &str, snapshot: &DetectionSnapshot) -> VersionCatalo
         let row = rows.entry(version.clone()).or_insert_with(|| ensure(&version));
         row.installed = true;
         let jdk_info = if software_id == "jdk" { Some(jdk::analyze(&instance.path)) } else { None };
+        let rustup_info = if software_id == "rust" { Some(rustup::analyze(&instance.path)) } else { None };
+        let (manager, manager_reason) = manager_for(software_id, &instance.path);
+        let can_uninstall = jdk_info.as_ref().map(|value| value.can_uninstall).unwrap_or(false)
+            || rustup_info.as_ref().map(|value| value.can_uninstall).unwrap_or(false);
         row.instances.push(VersionInstance {
             source: instance.source.clone(),
             path: instance.path.clone(),
             health: instance.health.clone(),
             managed_by: instance.managed_by.clone(),
-            can_uninstall: jdk_info.as_ref().map(|value| value.can_uninstall).unwrap_or(false),
-            mechanism: jdk_info.as_ref().filter(|value| value.can_uninstall).map(|_| "jdkTrash".to_string()),
-            reason: jdk_info.as_ref().and_then(|value| value.reason.clone()),
+            can_uninstall,
+            mechanism: if rustup_info.as_ref().map(|value| value.can_uninstall).unwrap_or(false) { Some("rustup".into()) } else if jdk_info.as_ref().map(|value| value.can_uninstall).unwrap_or(false) { Some("jdkTrash".into()) } else { None },
+            reason: jdk_info.as_ref().and_then(|value| value.reason.clone()).or_else(|| rustup_info.as_ref().and_then(|value| value.reason.clone())).or(manager_reason),
             root_path: jdk_info.as_ref().map(|value| value.root.clone()).filter(|value| !value.is_empty()),
-            manager: jdk_info.as_ref().map(|value| if value.vendor.is_empty() { "JDK".into() } else { value.vendor.clone() }).unwrap_or_else(|| manager_for(software_id, &instance.path).0),
+            manager: if rustup_info.as_ref().map(|value| !value.toolchain.is_empty()).unwrap_or(false) { "rustup".into() } else if jdk_info.is_some() { jdk_info.as_ref().map(|value| if value.vendor.is_empty() { "JDK".into() } else { value.vendor.clone() }).unwrap_or_else(|| manager.clone()) } else { manager.clone() },
         });
-        if jdk_info.as_ref().map(|value| value.can_uninstall).unwrap_or(false) {
+        if can_uninstall {
             row.can_uninstall = true;
         }
-        if jdk_info.is_none() {
-            let (manager, manager_reason) = manager_for(software_id, &instance.path);
-            let last = row.instances.last_mut().expect("instance just pushed");
-            last.manager = manager;
-            if last.reason.is_none() { last.reason = manager_reason; }
-        }
+
     }
     let (formulae, error) = homebrew::available(software_id);
     for formula in formulae {
