@@ -1,5 +1,6 @@
 mod detection;
 mod homebrew;
+mod jdk;
 mod process;
 mod storage;
 mod versions;
@@ -238,8 +239,51 @@ fn start_homebrew_install(app: AppHandle, state: State<AppState>, software_id: S
 }
 
 #[tauri::command]
-fn start_homebrew_uninstall(app: AppHandle, state: State<AppState>, software_id: String, version: String, formula: Option<String>) -> Result<u64, String> {
+fn start_homebrew_uninstall(app: AppHandle, state: State<AppState>, software_id: String, version: String, formula: Option<String>, instance_path: Option<String>) -> Result<u64, String> {
     let ownership = state.db.lock().ok().and_then(|connection| storage::active_for_version(&connection, &software_id, &version));
+    if ownership.is_none() && formula.is_none() {
+        let Some(instance_path) = instance_path else {
+            return Err("没有找到该版本可安全卸载的安装方式".into());
+        };
+        let snapshot = snapshot_clone(&state).ok_or_else(|| "尚未完成本机检测".to_string())?;
+        let exists = snapshot.instances.iter().any(|item| item.software_id == "jdk" && item.path == instance_path);
+        if !exists {
+            return Err("该 JDK 实例不在当前检测结果中".into());
+        }
+        let info = jdk::analyze(&instance_path);
+        if !info.can_uninstall {
+            return Err(info.reason.unwrap_or_else(|| "该 JDK 不能安全卸载".into()));
+        }
+        if state.install_busy.swap(true, Ordering::SeqCst) {
+            return Err("已有安装或卸载任务正在执行".into());
+        }
+        let job_id = state.job_seq.fetch_add(1, Ordering::SeqCst) + 1;
+        let state = state.inner().clone();
+        let app = app.clone();
+        std::thread::spawn(move || {
+            let _guard = BusyGuard(state.install_busy.clone());
+            emit_progress(&app, job_id, &software_id, &version, "uninstall", "uninstalling", "正在将 JDK 安装包移入废纸篓…");
+            let info = match jdk::uninstall(&instance_path) {
+                Ok(value) => value,
+                Err(error) => {
+                    let snapshot = detect_now(&app, &state);
+                    let others = snapshot.instances.iter().any(|item| item.software_id == "jdk" && item.path != instance_path);
+                    emit_finished(&app, job_id, &software_id, &version, "uninstall", false, &format!("JDK 卸载失败：{error}"), &error, Some(Verification { verified: false, instance_path: None, version: None, health: None, system_git_available: Some(others) }));
+                    return;
+                }
+            };
+            let snapshot = detect_now(&app, &state);
+            let still_present = snapshot.instances.iter().any(|item| item.software_id == "jdk" && item.path == instance_path);
+            let others = snapshot.instances.iter().any(|item| item.software_id == "jdk" && item.path != instance_path);
+            if still_present {
+                emit_finished(&app, job_id, &software_id, &version, "uninstall", false, "JDK 已移动，但检测仍然发现该实例；请检查", "", Some(Verification { verified: false, instance_path: None, version: None, health: None, system_git_available: Some(others) }));
+                return;
+            }
+            let output = info.trash_path.unwrap_or_default();
+            emit_finished(&app, job_id, &software_id, &version, "uninstall", true, "JDK 已移入废纸篓，可从废纸篓恢复；其他 JDK 保留", &output, Some(Verification { verified: true, instance_path: None, version: None, health: None, system_git_available: Some(others) }));
+        });
+        return Ok(job_id);
+    }
     let package = if let Some(record) = &ownership {
         record.package.clone()
     } else {

@@ -251,6 +251,45 @@ test("indeterminate progress stays a single stable track across remounts", async
   }
 });
 
+test("JDK rows expose safe instances, reason for blocked instances and exact targets", async () => {
+  const item = SOFTWARE.find(entry => entry.id === "jdk");
+  const safeA = { source: "path", path: "/Users/test/Library/Java/JavaVirtualMachines/openjdk-26/Contents/Home/bin/java", health: "ok", managedBy: "system", canUninstall: true, mechanism: "jdkTrash", reason: null, rootPath: "/Users/test/Library/Java/JavaVirtualMachines/openjdk-26" };
+  const safeB = { source: "path", path: "/Users/test/jdk-26.jdk/Contents/Home/bin/java", health: "ok", managedBy: "system", canUninstall: true, mechanism: "jdkTrash", reason: null, rootPath: "/Users/test/jdk-26.jdk" };
+  const blocked = { source: "path", path: "/Users/test/Library/Java/JavaVirtualMachines/jbr-17.0.14/Contents/Home/bin/java", health: "ok", managedBy: "system", canUninstall: false, mechanism: null, reason: "JetBrains Runtime 可能被 IntelliJ IDEA 使用，暂不提供卸载", rootPath: "/Users/test/Library/Java/JavaVirtualMachines/jbr-17.0.14" };
+  const versions = [
+    versionRow({ version: "26", installed: true, canUninstall: true, instances: [safeA, blocked] }),
+    versionRow({ version: "17.0.14", installed: true, canUninstall: false, uninstallReason: "JetBrains Runtime 可能被 IntelliJ IDEA 使用，暂不提供卸载", instances: [blocked] })
+  ];
+  let target = null;
+  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, versions, onUninstall: (version, formula, instancePath) => { target = { version, formula, instancePath }; } }));
+  const dialog = await screen.findByRole("dialog", { name: "JDK 详情" });
+  assert.equal(screen.getByRole("button", { name: "卸载 26" }).disabled, false);
+  assert.equal(screen.queryByRole("button", { name: "卸载 17.0.14" }), null);
+  await userEvent.setup().click(screen.getByRole("button", { name: "为什么不能卸载 17.0.14" }));
+  assert.match(dialog.textContent, /JetBrains Runtime/);
+  await userEvent.setup().click(screen.getByRole("button", { name: "卸载 26" }));
+  assert.match(dialog.textContent, /openjdk-26/);
+  await userEvent.setup().click(screen.getByRole("button", { name: "确认" }));
+  assert.deepEqual(target, { version: "26", formula: null, instancePath: safeA.path });
+});
+
+test("multiple safe JDK instances require a concrete selection", async () => {
+  const item = SOFTWARE.find(entry => entry.id === "jdk");
+  const instance = suffix => ({ source: "path", path: `/Users/test/${suffix}/Contents/Home/bin/java`, health: "ok", managedBy: "system", canUninstall: true, mechanism: "jdkTrash", reason: null, rootPath: `/Users/test/${suffix}` });
+  const versions = [versionRow({ version: "21", installed: true, canUninstall: true, instances: [instance("jdk-a.jdk"), instance("jdk-b.jdk")] })];
+  let target = null;
+  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, versions, onUninstall: (version, formula, path) => { target = path; } }));
+  const dialog = await screen.findByRole("dialog", { name: "JDK 详情" });
+  await userEvent.setup().click(screen.getByRole("button", { name: "卸载 21" }));
+  const confirm = screen.getByRole("button", { name: "确认" });
+  assert.equal(confirm.disabled, true);
+  const select = screen.getByRole("combobox", { name: "选择卸载实例" });
+  await userEvent.setup().selectOptions(select, "/Users/test/jdk-b.jdk/Contents/Home/bin/java");
+  assert.equal(confirm.disabled, false);
+  await userEvent.setup().click(confirm);
+  assert.equal(target, "/Users/test/jdk-b.jdk/Contents/Home/bin/java");
+});
+
 test("install progress is per version and does not invent a percentage", async () => {
   const item = SOFTWARE.find(entry => entry.id === "go");
   const versions = [versionRow({ version: "1.27.3", installable: true })];

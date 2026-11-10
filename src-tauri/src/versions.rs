@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 
 use crate::detection::DetectionSnapshot;
 use crate::homebrew;
+use crate::jdk;
 
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -12,6 +13,10 @@ pub struct VersionInstance {
     pub path: String,
     pub health: String,
     pub managed_by: String,
+    pub can_uninstall: bool,
+    pub mechanism: Option<String>,
+    pub reason: Option<String>,
+    pub root_path: Option<String>,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -25,6 +30,7 @@ pub struct VersionRow {
     pub formula: Option<String>,
     pub instances: Vec<VersionInstance>,
     pub reason: Option<String>,
+    pub uninstall_reason: Option<String>,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -66,18 +72,27 @@ pub fn catalog(software_id: &str, snapshot: &DetectionSnapshot) -> VersionCatalo
             formula: None,
             instances: Vec::new(),
             reason: None,
+            uninstall_reason: None,
         }
     };
     for instance in snapshot.instances.iter().filter(|instance| instance.software_id == software_id) {
         let version = instance.version.clone().unwrap_or_else(|| "版本未知".into());
         let row = rows.entry(version.clone()).or_insert_with(|| ensure(&version));
         row.installed = true;
+        let jdk_info = if software_id == "jdk" { Some(jdk::analyze(&instance.path)) } else { None };
         row.instances.push(VersionInstance {
             source: instance.source.clone(),
             path: instance.path.clone(),
             health: instance.health.clone(),
             managed_by: instance.managed_by.clone(),
+            can_uninstall: jdk_info.as_ref().map(|value| value.can_uninstall).unwrap_or(false),
+            mechanism: jdk_info.as_ref().filter(|value| value.can_uninstall).map(|_| "jdkTrash".to_string()),
+            reason: jdk_info.as_ref().and_then(|value| value.reason.clone()),
+            root_path: jdk_info.as_ref().map(|value| value.root.clone()).filter(|value| !value.is_empty()),
         });
+        if jdk_info.as_ref().map(|value| value.can_uninstall).unwrap_or(false) {
+            row.can_uninstall = true;
+        }
     }
     let (formulae, error) = homebrew::available(software_id);
     for formula in formulae {
@@ -111,7 +126,7 @@ pub fn catalog(software_id: &str, snapshot: &DetectionSnapshot) -> VersionCatalo
                     if has_instance && blocked.is_none() {
                         row.can_uninstall = true;
                     } else {
-                        row.reason = blocked.clone().or_else(|| Some("未能定位可安全卸载的安装实例".into()));
+                        row.uninstall_reason = blocked.clone().or_else(|| Some("未能定位可安全卸载的安装实例".into()));
                     }
                 }
             }
@@ -129,7 +144,13 @@ pub fn catalog(software_id: &str, snapshot: &DetectionSnapshot) -> VersionCatalo
     }
     let mut versions: Vec<VersionRow> = rows.into_values().collect();
     for row in &mut versions {
-        if row.installed { row.installable = false; }
+        if row.installed {
+            row.installable = false;
+            if !row.can_uninstall && row.uninstall_reason.is_none() {
+                row.uninstall_reason = row.instances.iter().find_map(|instance| instance.reason.clone())
+                    .or_else(|| Some("未识别到可安全卸载的安装管理器".into()));
+            }
+        }
     }
     versions.sort_by(|a, b| compare_versions(&b.version, &a.version));
     VersionCatalog {

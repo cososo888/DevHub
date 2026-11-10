@@ -118,7 +118,7 @@ export default function App() {
           result={install.result && install.result.softwareId === selectedId ? install.result : null}
           actionError={install.error}
           onInstall={(version) => { if (selected) void install.install(selected.item.id, version); }}
-          onUninstall={(version, formula) => { if (selected) void install.uninstall(selected.item.id, version, formula); }}
+          onUninstall={(version, formula, instancePath) => { if (selected) void install.uninstall(selected.item.id, version, formula, instancePath); }}
           onClose={() => setSelected(null)}
         />
       )}

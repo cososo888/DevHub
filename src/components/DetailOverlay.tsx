@@ -45,7 +45,7 @@ export function anchoredCard(origin: OrbOrigin, width: number, height: number, v
   return { left, top, width: w, height: natural };
 }
 
-function DetailBody({ item, versions, loading, error, task, result, actionError, confirm, onRetry, onConfirm, onInstall, onUninstall, interactive = false }: {
+function DetailBody({ item, versions, loading, error, task, result, actionError, confirm, selectedInstance, reasonOpen, onSelectInstance, onToggleReason, onRetry, onConfirm, onInstall, onUninstall, interactive = false }: {
   item: Software;
   versions: VersionRow[];
   loading: boolean;
@@ -54,10 +54,14 @@ function DetailBody({ item, versions, loading, error, task, result, actionError,
   result: InstallFinished | null;
   actionError: string | null;
   confirm: Confirm;
+  selectedInstance: string | null;
+  reasonOpen: string | null;
+  onSelectInstance: (path: string | null) => void;
+  onToggleReason: (version: string) => void;
   onRetry: () => void;
   onConfirm: (value: Confirm) => void;
   onInstall: (version: string) => void;
-  onUninstall: (version: string, formula: string | null) => void;
+  onUninstall: (version: string, formula: string | null, instancePath: string | null) => void;
   interactive?: boolean;
 }) {
   return (
@@ -79,6 +83,12 @@ function DetailBody({ item, versions, loading, error, task, result, actionError,
           const rowTask = task?.version === row.version ? task : null;
           const rowResult = result?.version === row.version ? result : null;
           const confirming = confirm?.version === row.version;
+          const candidates = row.instances.filter(instance => instance.canUninstall);
+          const selectedTarget = candidates.find(instance => instance.path === selectedInstance) ?? (candidates.length === 1 ? candidates[0] : null);
+          const formulaInstance = row.formula
+            ? row.instances.find(instance => instance.path.includes(`/Cellar/${row.formula}/`) || instance.path.includes(`/opt/${row.formula}/`))
+            : null;
+          const displayPath = row.formula ? formulaInstance?.path ?? null : selectedTarget?.rootPath ?? selectedTarget?.path ?? null;
           return (
             <div className={`version-row${row.installed ? " installed" : ""}`} key={`${row.version}:${row.formula ?? ""}`}>
               <div className="version-main">
@@ -89,7 +99,13 @@ function DetailBody({ item, versions, loading, error, task, result, actionError,
                     <button type="button" aria-label={`安装 ${row.version}`} disabled={Boolean(task) || Boolean(confirm)} onClick={() => onConfirm({ version: row.version, action: "install" })}>安装</button>
                   )}
                   {row.installed && row.canUninstall && !confirming && (
-                    <button type="button" aria-label={`卸载 ${row.version}`} disabled={Boolean(task) || Boolean(confirm)} onClick={() => onConfirm({ version: row.version, action: "uninstall" })}>卸载</button>
+                    <button type="button" aria-label={`卸载 ${row.version}`} disabled={Boolean(task) || Boolean(confirm)} onClick={() => {
+                      onSelectInstance(candidates.length === 1 ? candidates[0].path : null);
+                      onConfirm({ version: row.version, action: "uninstall" });
+                    }}>卸载</button>
+                  )}
+                  {row.installed && !row.canUninstall && row.uninstallReason && !confirming && (
+                    <button type="button" className="reason-button" aria-label={`为什么不能卸载 ${row.version}`} onClick={() => onToggleReason(row.version)}>?</button>
                   )}
                   {!row.installed && !row.installable && <span className="unavailable-label">不可安装</span>}
                 </div>
@@ -97,13 +113,27 @@ function DetailBody({ item, versions, loading, error, task, result, actionError,
               {confirming && confirm && (
                 <div className="row-confirm">
                   <span>{confirm.action === "install" ? `安装 ${row.version}？` : `卸载 ${row.version}？`}</span>
-                  {confirm.action === "uninstall" && <small>其他来源的同名版本不会被修改。</small>}
+                  {confirm.action === "install" && <small>安装与验证会自动完成。</small>}
+                  {confirm.action === "uninstall" && candidates.length > 1 && (
+                    <select aria-label="选择卸载实例" value={selectedInstance ?? ""} onChange={event => onSelectInstance(event.target.value || null)}>
+                      <option value="">选择具体安装实例</option>
+                      {candidates.map(instance => <option key={instance.path} value={instance.path}>{instance.rootPath ?? instance.path}</option>)}
+                    </select>
+                  )}
+                  {confirm.action === "uninstall" && displayPath && <small className="uninstall-target">{displayPath}</small>}
+                  {confirm.action === "uninstall" && !row.formula && <small>若当前 PATH 指向此 JDK，卸载后相关命令会失效。</small>}
+                  {confirm.action === "uninstall" && <small>其他来源的同名版本不会被修改；确认后才会执行。</small>}
                   <div className="row-confirm-actions">
-                    <button type="button" className="primary" onClick={() => { onConfirm(null); confirm.action === "install" ? onInstall(row.version) : onUninstall(row.version, row.formula); }}>确认</button>
-                    <button type="button" onClick={() => onConfirm(null)}>取消</button>
+                    <button type="button" className="primary" disabled={confirm.action === "uninstall" && !row.formula && candidates.length > 1 && !selectedInstance} onClick={() => {
+                      onConfirm(null);
+                      if (confirm.action === "install") onInstall(row.version);
+                      else onUninstall(row.version, row.formula, row.formula ? null : selectedInstance);
+                    }}>确认</button>
+                    <button type="button" onClick={() => { onConfirm(null); onSelectInstance(null); }}>取消</button>
                   </div>
                 </div>
               )}
+              {reasonOpen === row.version && row.uninstallReason && <p className="row-reason">{row.uninstallReason}</p>}
               {rowTask && (
                 <div className="row-progress" role="status">
                   <span className="mini-spinner" />
@@ -136,7 +166,7 @@ export function DetailOverlay({ item, origin, onClose, versions = EMPTY_VERSIONS
   result?: InstallFinished | null;
   actionError?: string | null;
   onInstall: (version: string) => void;
-  onUninstall: (version: string, formula: string | null) => void;
+  onUninstall: (version: string, formula: string | null, instancePath: string | null) => void;
 }) {
   const reduced = useReducedMotion();
   const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -144,6 +174,8 @@ export function DetailOverlay({ item, origin, onClose, versions = EMPTY_VERSIONS
   const [entered, setEntered] = useState(false);
   const [closing, setClosing] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
+  const [selectedInstance, setSelectedInstance] = useState<string | null>(null);
+  const [reasonOpen, setReasonOpen] = useState<string | null>(null);
   const measure = useRef<HTMLDivElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const card = useRef<HTMLElement>(null);
@@ -201,13 +233,13 @@ export function DetailOverlay({ item, origin, onClose, versions = EMPTY_VERSIONS
   const geometry: CSSProperties = entered
     ? { left: target.left, top: target.top, width: target.width, height: target.height, borderRadius: RADIUS }
     : { left: origin.left, top: origin.top, width: origin.width, height: origin.height, borderRadius: Math.max(1, origin.width / 2) };
-  const body = <DetailBody item={item} versions={versions} loading={loading} error={error} task={task} result={result} actionError={actionError} confirm={confirm} onRetry={onRetry} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} interactive />;
+  const body = <DetailBody item={item} versions={versions} loading={loading} error={error} task={task} result={result} actionError={actionError} confirm={confirm} selectedInstance={selectedInstance} reasonOpen={reasonOpen} onSelectInstance={setSelectedInstance} onToggleReason={version => setReasonOpen(current => current === version ? null : version)} onRetry={onRetry} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} interactive />;
 
   return createPortal(
     <div className="detail-layer">
       <div className="detail-catcher" onClick={close} aria-hidden="true" />
       <div ref={measure} className="detail-measure" style={{ width }} aria-hidden="true">
-        <DetailBody item={item} versions={versions} loading={loading} error={error} task={task} result={result} actionError={actionError} confirm={confirm} onRetry={onRetry} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} />
+        <DetailBody item={item} versions={versions} loading={loading} error={error} task={task} result={result} actionError={actionError} confirm={confirm} selectedInstance={selectedInstance} reasonOpen={reasonOpen} onSelectInstance={setSelectedInstance} onToggleReason={version => setReasonOpen(current => current === version ? null : version)} onRetry={onRetry} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} />
       </div>
       <section ref={card} className={`morph-card${entered ? " open" : ""}${closing ? " closing" : ""}`} style={{ ...geometry, "--orb-accent": item.accent } as CSSProperties} role="dialog" aria-modal="true" aria-label={`${item.name} 详情`} onClick={event => event.stopPropagation()}>
         <span className="morph-logo" aria-hidden="true"><SoftwareLogo id={item.id} name={item.name} /></span>

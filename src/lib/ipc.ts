@@ -54,6 +54,10 @@ export interface VersionInstance {
   path: string;
   health: string;
   managedBy: string;
+  canUninstall: boolean;
+  mechanism: string | null;
+  reason: string | null;
+  rootPath: string | null;
 }
 
 export interface VersionRow {
@@ -65,6 +69,7 @@ export interface VersionRow {
   formula: string | null;
   instances: VersionInstance[];
   reason: string | null;
+  uninstallReason: string | null;
 }
 
 export interface VersionCatalog {
