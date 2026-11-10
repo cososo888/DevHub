@@ -58,6 +58,7 @@ export interface VersionInstance {
   mechanism: string | null;
   reason: string | null;
   rootPath: string | null;
+  manager: string;
 }
 
 export interface VersionRow {
@@ -70,6 +71,7 @@ export interface VersionRow {
   instances: VersionInstance[];
   reason: string | null;
   uninstallReason: string | null;
+  historical: boolean;
 }
 
 export interface VersionCatalog {
@@ -77,6 +79,7 @@ export interface VersionCatalog {
   versions: VersionRow[];
   error: string | null;
   homebrewAvailable: boolean;
+  stale: boolean;
 }
 
 export interface InstallProgress {

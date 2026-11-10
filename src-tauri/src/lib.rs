@@ -136,7 +136,7 @@ fn snapshot_clone(state: &AppState) -> Option<DetectionSnapshot> {
 
 fn version_catalog(state: &AppState, software_id: &str) -> VersionCatalog {
     let Some(snapshot) = snapshot_clone(state) else {
-        return VersionCatalog { software_id: software_id.into(), versions: Vec::new(), error: Some("尚未完成本机检测，请先刷新".into()), homebrew_available: false };
+        return VersionCatalog { software_id: software_id.into(), versions: Vec::new(), error: Some("尚未完成本机检测，请先刷新".into()), homebrew_available: false, stale: true };
     };
     versions::catalog(software_id, &snapshot)
 }
@@ -153,7 +153,17 @@ fn get_detection_snapshot(state: State<AppState>) -> Option<DetectionSnapshot> {
 
 #[tauri::command]
 fn get_software_versions(software_id: String, state: State<AppState>) -> VersionCatalog {
-    version_catalog(&state, &software_id)
+    let live = version_catalog(&state, &software_id);
+    if live.error.is_none() {
+        if let (Ok(connection), Ok(payload)) = (state.db.lock(), serde_json::to_string(&live)) {
+            let _ = storage::save_version_cache(&connection, &software_id, &payload, now_ms());
+        }
+    }
+    let (cached, history) = match state.db.lock() {
+        Ok(connection) => (storage::load_version_cache(&connection, &software_id).map(|(catalog, _)| catalog), storage::uninstall_history(&connection, &software_id)),
+        Err(_) => (None, Vec::new()),
+    };
+    versions::merge_history(live, cached.as_ref(), &history)
 }
 
 #[tauri::command]
@@ -280,6 +290,9 @@ fn start_homebrew_uninstall(app: AppHandle, state: State<AppState>, software_id:
                 return;
             }
             let output = info.trash_path.unwrap_or_default();
+            if let Ok(connection) = state.db.lock() {
+                let _ = storage::record_uninstall(&connection, &software_id, &version, "jdkTrash", Some(&instance_path), now_ms());
+            }
             emit_finished(&app, job_id, &software_id, &version, "uninstall", true, "JDK 已移入废纸篓，可从废纸篓恢复；其他 JDK 保留", &output, Some(Verification { verified: true, instance_path: None, version: None, health: None, system_git_available: Some(others) }));
         });
         return Ok(job_id);
@@ -340,7 +353,10 @@ fn start_homebrew_uninstall(app: AppHandle, state: State<AppState>, software_id:
         if let Some(ownership) = ownership {
             if let Ok(connection) = state.db.lock() {
                 let _ = storage::mark_uninstalled(&connection, ownership.id, now_ms());
+                let _ = storage::record_uninstall(&connection, &software_id, &version, "homebrew", ownership.instance_path.as_deref(), now_ms());
             }
+        } else if let Ok(connection) = state.db.lock() {
+            let _ = storage::record_uninstall(&connection, &software_id, &version, "homebrew", None, now_ms());
         }
         let success = software_id != "git" || system;
         let message = if software_id == "git" {

@@ -31,6 +31,19 @@ pub fn open(dir: &Path) -> Result<Connection, String> {
                instance_path TEXT,
                version TEXT,
                message TEXT
+             );
+             CREATE TABLE IF NOT EXISTS version_catalog_cache (
+               software_id TEXT PRIMARY KEY,
+               payload TEXT NOT NULL,
+               updated_at INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS uninstall_history (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               software_id TEXT NOT NULL,
+               version TEXT NOT NULL,
+               source TEXT NOT NULL,
+               instance_path TEXT,
+               uninstalled_at INTEGER NOT NULL
              );",
         )
         .map_err(|error| format!("无法初始化 V2 数据库：{error}"))?;
@@ -83,6 +96,22 @@ mod tests {
         assert!(!active.preexisting);
         mark_uninstalled(&connection, id, 102).expect("uninstall");
         assert!(active_for_version(&connection, "git", "2.51.0").is_none());
+    }
+
+    #[test]
+    fn version_cache_and_uninstall_history_round_trip() {
+        let connection = Connection::open_in_memory().expect("memory db");
+        connection.execute_batch("CREATE TABLE version_catalog_cache (software_id TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at INTEGER NOT NULL); CREATE TABLE uninstall_history (id INTEGER PRIMARY KEY AUTOINCREMENT, software_id TEXT NOT NULL, version TEXT NOT NULL, source TEXT NOT NULL, instance_path TEXT, uninstalled_at INTEGER NOT NULL);").expect("schema");
+        let catalog = crate::versions::VersionCatalog { software_id: "jdk".into(), versions: Vec::new(), error: None, homebrew_available: true, stale: false };
+        let payload = serde_json::to_string(&catalog).expect("json");
+        save_version_cache(&connection, "jdk", &payload, 10).expect("save");
+        let (loaded, updated) = load_version_cache(&connection, "jdk").expect("load");
+        assert_eq!(loaded.software_id, "jdk");
+        assert_eq!(updated, 10);
+        record_uninstall(&connection, "jdk", "17.0.19", "jdkTrash", Some("/tmp/jdk"), 20).expect("history");
+        let history = uninstall_history(&connection, "jdk");
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].0, "17.0.19");
     }
 
     #[test]
@@ -168,4 +197,39 @@ pub fn active_for_version(connection: &Connection, software_id: &str, version: &
             message: row.get(10)?,
         }),
     ).ok()
+}
+
+pub fn save_version_cache(connection: &Connection, software_id: &str, payload: &str, now: i64) -> Result<(), String> {
+    connection.execute(
+        "INSERT INTO version_catalog_cache (software_id, payload, updated_at) VALUES (?1, ?2, ?3)
+         ON CONFLICT(software_id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at",
+        params![software_id, payload, now],
+    ).map_err(|error| format!("无法保存版本目录缓存：{error}"))?;
+    Ok(())
+}
+
+pub fn load_version_cache(connection: &Connection, software_id: &str) -> Option<(crate::versions::VersionCatalog, i64)> {
+    connection.query_row(
+        "SELECT payload, updated_at FROM version_catalog_cache WHERE software_id = ?1",
+        params![software_id],
+        |row| {
+            let payload: String = row.get(0)?;
+            let updated: i64 = row.get(1)?;
+            Ok((payload, updated))
+        },
+    ).ok().and_then(|(payload, updated)| serde_json::from_str::<crate::versions::VersionCatalog>(&payload).ok().map(|catalog| (catalog, updated)))
+}
+
+pub fn record_uninstall(connection: &Connection, software_id: &str, version: &str, source: &str, instance_path: Option<&str>, now: i64) -> Result<(), String> {
+    connection.execute(
+        "INSERT INTO uninstall_history (software_id, version, source, instance_path, uninstalled_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![software_id, version, source, instance_path, now],
+    ).map_err(|error| format!("无法写入卸载历史：{error}"))?;
+    Ok(())
+}
+
+pub fn uninstall_history(connection: &Connection, software_id: &str) -> Vec<(String, String, Option<String>, i64)> {
+    let Ok(mut statement) = connection.prepare("SELECT version, source, instance_path, uninstalled_at FROM uninstall_history WHERE software_id = ?1 ORDER BY id DESC") else { return Vec::new() };
+    let Ok(rows) = statement.query_map(params![software_id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))) else { return Vec::new() };
+    rows.flatten().collect()
 }

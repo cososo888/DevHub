@@ -38,12 +38,12 @@ pub struct FormulaInfo {
 pub fn formulas_for(software_id: &str) -> &'static [&'static str] {
     match software_id {
         "git" => &["git"],
-        "go" => &["go"],
+        "go" => &["go", "go@1.26"],
         "maven" => &["maven"],
-        "gradle" => &["gradle"],
+        "gradle" => &["gradle", "gradle@8"],
         "node" => &["node", "node@24"],
-        "python" => &["python@3.14", "python@3.13", "python@3.12"],
-        "jdk" => &["openjdk", "openjdk@21", "openjdk@17"],
+        "python" => &["python@3.14", "python@3.13", "python@3.12", "python@3.11"],
+        "jdk" => &["openjdk", "openjdk@25", "openjdk@21", "openjdk@17"],
         "rust" => &["rust"],
         _ => &[],
     }

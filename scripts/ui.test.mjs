@@ -153,7 +153,7 @@ test("anchored geometry keeps the orb as a corner and stays inside the viewport"
 
 const versionRow = (overrides = {}) => ({
   version: "1.0.0", installed: false, installable: false, canUninstall: false,
-  methods: [], formula: null, instances: [], reason: null, ...overrides
+  methods: [], formula: null, instances: [], reason: null, uninstallReason: null, historical: false, ...overrides
 });
 
 test("detail is reduced to icon, name, description and the version list", async () => {
@@ -325,6 +325,18 @@ test("detail keeps keyboard scrolling while the scrollbar is visually hidden", a
   assert.ok(moved > 0);
   fireEvent.keyDown(window, { key: "End" });
   assert.equal(ended, 900);
+});
+
+test("an uninstalled version with no current channel remains as a historical row", async () => {
+  const item = SOFTWARE.find(entry => entry.id === "jdk");
+  const versions = [versionRow({ version: "17.0.19", historical: true, uninstallReason: "已卸载；当前没有安全安装渠道" })];
+  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, versions }));
+  const dialog = await screen.findByRole("dialog", { name: "JDK 详情" });
+  assert.match(dialog.textContent, /17\.0\.19/);
+  assert.match(dialog.textContent, /已卸载/);
+  assert.equal(screen.queryByRole("button", { name: "安装 17.0.19" }), null);
+  await userEvent.setup().click(screen.getByRole("button", { name: "为什么不能卸载 17.0.19" }));
+  assert.match(dialog.textContent, /没有安全安装渠道/);
 });
 
 test("reduced motion opens the card at its final geometry and closes without waiting", async () => {

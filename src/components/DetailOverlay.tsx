@@ -95,6 +95,7 @@ function DetailBody({ item, versions, loading, error, task, result, actionError,
                 <span className="version-number">{row.version}</span>
                 <div className="version-actions">
                   {row.installed && <span className="installed-label">已安装</span>}
+                  {row.historical && <span className="unavailable-label">已卸载</span>}
                   {!row.installed && row.installable && !confirming && (
                     <button type="button" aria-label={`安装 ${row.version}`} disabled={Boolean(task) || Boolean(confirm)} onClick={() => onConfirm({ version: row.version, action: "install" })}>安装</button>
                   )}
@@ -104,10 +105,10 @@ function DetailBody({ item, versions, loading, error, task, result, actionError,
                       onConfirm({ version: row.version, action: "uninstall" });
                     }}>卸载</button>
                   )}
-                  {row.installed && !row.canUninstall && row.uninstallReason && !confirming && (
+                  {(row.installed || row.historical) && !row.canUninstall && row.uninstallReason && !confirming && (
                     <button type="button" className="reason-button" aria-label={`为什么不能卸载 ${row.version}`} onClick={() => onToggleReason(row.version)}>?</button>
                   )}
-                  {!row.installed && !row.installable && <span className="unavailable-label">不可安装</span>}
+                  {!row.installed && !row.installable && !row.historical && <span className="unavailable-label">不可安装</span>}
                 </div>
               </div>
               {confirming && confirm && (
