@@ -158,11 +158,23 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .eyebrow { margin: 0 0 6px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: var(--faint); }
 h1 { margin: 0; font-size: clamp(26px, 3vw, 34px); letter-spacing: -1px; font-weight: 700; }
 .sub { margin: 10px 0 0; color: var(--muted); font-size: 13px; max-width: 560px; line-height: 1.65; }
+.heading-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .phase-pill {
   flex-shrink: 0; font-size: 11px; color: var(--muted);
   border: 1px solid var(--line); border-radius: 999px; padding: 6px 11px;
   background: var(--surface);
 }
+.refresh-button {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center;
+  border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+}
+.refresh-button:hover:not(:disabled) { color: var(--text); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.refresh-button:disabled { opacity: .7; }
+.refresh-button .spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.detection-line { margin: 8px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.detection-line.error { color: #b45309; }
 .orb-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
@@ -255,11 +267,27 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 34px); letter-spacing: -1px; font-we
   border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; background: var(--surface);
 }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+.status-dot.installed { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
 .detail-block { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; }
 .detail-block h3 { margin: 0 0 6px; font-size: 10.5px; font-weight: 600; letter-spacing: .4px; color: var(--faint); }
 .detail-block p { margin: 0; font-size: 12.5px; color: var(--text); line-height: 1.5; }
 .detail-block .detail-muted { color: var(--muted); font-size: 11.5px; margin-top: 5px; }
 .detail-block select { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--surface); color: var(--text); font-size: 12.5px; }
+.instance-list { list-style: none; margin: 0; padding: 0; }
+.instance-list li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.instance-list li:first-child { padding-top: 2px; }
+.instance-list li:last-child { border-bottom: 0; padding-bottom: 2px; }
+.instance-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.instance-head strong { font-size: 13px; font-weight: 600; color: var(--text); }
+.health-badge { flex-shrink: 0; font-size: 9.5px; line-height: 1; padding: 3px 6px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); background: var(--surface); }
+.health-badge.ok { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.health-badge.broken { color: #c2410c; border-color: color-mix(in srgb, #c2410c 30%, var(--line)); }
+.instance-meta { margin-top: 3px; font-size: 10.5px; color: var(--muted); }
+.instance-path { display: block; margin-top: 4px; font-family: "SF Mono", ui-monospace, monospace; font-size: 10px; line-height: 1.45; color: var(--faint); overflow-wrap: anywhere; user-select: text; }
+.instance-detail { margin: 4px 0 0; font-size: 10.5px; color: #b45309; line-height: 1.45; }
+.detection-errors { margin-top: 10px; font-size: 10.5px; color: var(--muted); }
+.detection-errors strong { display: block; margin-bottom: 3px; color: #b45309; }
+.detection-errors p { margin: 2px 0; line-height: 1.45; }
 .detail-actions { display: flex; gap: 8px; margin: 15px 0 12px; }
 .detail-actions button { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 9px; padding: 8px 13px; font-size: 12.5px; }
 .detail-actions .primary { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -282,6 +310,7 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 34px); letter-spacing: -1px; font-we
 @media (max-width: 600px) {
   .main { padding-top: 24px; }
   .grid-heading { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .heading-actions { align-self: flex-end; }
   .toolbar-right { margin-left: auto; }
   .search input { width: 118px; }
   .theme-switch { display: none; }

@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import type { Software } from "../catalog";
 import { STAGE_LABEL } from "../catalog";
 import { useReducedMotion } from "../hooks/useReducedMotion";
+import type { DetectionError, Health, HomebrewStatus, SoftwareInstance } from "../lib/ipc";
 import { SoftwareLogo } from "./SoftwareLogo";
 
 export interface OrbOrigin {
@@ -51,7 +52,58 @@ export function anchoredCard(origin: OrbOrigin, width: number, height: number, v
   return { left, top, width: w, height: natural };
 }
 
-function DetailBody({ item, interactive = false }: { item: Software; interactive?: boolean }) {
+const SOURCE_LABEL: Record<string, string> = {
+  path: "PATH",
+  homebrewFormula: "Homebrew formula",
+  homebrewCask: "Homebrew cask",
+  devhubV1: "旧版 DevHub",
+  devhubV2: "DevHub V2",
+  officialApp: "官方应用"
+};
+
+const HEALTH_LABEL: Record<Health, string> = {
+  ok: "正常",
+  unverified: "未验证",
+  broken: "异常"
+};
+
+function formatTime(value: number | null | undefined) {
+  if (!value) return "尚未检测";
+  return new Date(value).toLocaleString("zh-CN", { hour12: false });
+}
+
+function sourceLabels(instances: SoftwareInstance[]) {
+  const labels = instances.map(instance => SOURCE_LABEL[instance.source] ?? instance.source);
+  return [...new Set(labels)];
+}
+
+function DetailBody({ item, instances, detected, refreshing, stale, homebrew, errors, refreshedAt, interactive = false }: {
+  item: Software;
+  instances: SoftwareInstance[];
+  detected: boolean;
+  refreshing: boolean;
+  stale: boolean;
+  homebrew: HomebrewStatus | null | undefined;
+  errors: DetectionError[];
+  refreshedAt: number | null;
+  interactive?: boolean;
+}) {
+  const installed = instances.length > 0;
+  const allUnverified = installed && instances.every(instance => instance.health !== "ok");
+  const anyBroken = installed && instances.some(instance => instance.health === "broken");
+  const status = installed
+    ? allUnverified
+      ? `已安装 · ${instances.length} 个版本（未验证）`
+      : anyBroken
+        ? `已安装 · ${instances.length} 个版本（部分异常）`
+        : `已安装 · ${instances.length} 个版本`
+    : refreshing ? "正在检测…" : detected ? "未安装" : "尚未检测";
+  const detectionNote = stale
+    ? "缓存结果 · 正在重新验证"
+    : refreshing
+      ? "正在读取本机环境…"
+      : `最后检测：${formatTime(refreshedAt)}`;
+
   return (
     <div className="detail-inner" tabIndex={interactive ? 0 : undefined} role={interactive ? "region" : undefined} aria-label={interactive ? `${item.name} 详情内容` : undefined}>
       <header className="detail-head">
@@ -63,29 +115,49 @@ function DetailBody({ item, interactive = false }: { item: Software; interactive
         </div>
       </header>
 
-      <div className="detail-status" role="status"><span className="status-dot" />尚未检测 · 第一阶段不读取本机状态</div>
+      <div className="detail-status" role="status"><span className={`status-dot ${installed ? "installed" : ""}`} />{status}</div>
 
       <section className="detail-block">
         <h3>已安装版本</h3>
-        <p className="detail-muted">未检测到本机版本。</p>
+        {installed ? (
+          <ul className="instance-list">
+            {instances.map(instance => (
+              <li key={`${instance.path}:${instance.version ?? "unknown"}`}>
+                <div className="instance-head">
+                  <strong>{instance.version ?? "版本未知"}</strong>
+                  <span className={`health-badge ${instance.health}`}>{HEALTH_LABEL[instance.health]}</span>
+                </div>
+                <div className="instance-meta">
+                  {SOURCE_LABEL[instance.source] ?? instance.source}
+                  {instance.managedBy === "devhub" ? " · DevHub 管理" : ""}
+                  {instance.kind === "app" ? " · 应用" : " · CLI"}
+                </div>
+                <code className="instance-path">{instance.path}</code>
+                {instance.detail ? <p className="instance-detail">{instance.detail}</p> : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="detail-muted">{refreshing ? "正在检测本机版本…" : detected ? "未检测到本机安装。" : "尚未检测。"}</p>
+        )}
       </section>
 
       <section className="detail-block">
         <h3>可安装版本</h3>
-        <select disabled aria-label="选择版本"><option>版本列表将在第二阶段接入</option></select>
+        <select disabled aria-label="选择版本"><option>版本列表将在第三阶段接入</option></select>
       </section>
 
       <section className="detail-block">
         <h3>安装来源</h3>
-        <p>{item.source}</p>
+        <p>{installed ? sourceLabels(instances).join("、") : item.source}</p>
       </section>
 
       <div className="detail-actions">
-        <button type="button" className="primary" disabled>安装（第二阶段接入）</button>
+        <button type="button" className="primary" disabled>安装（第三阶段接入）</button>
         <button type="button" disabled>卸载</button>
       </div>
 
-      <p className="detail-note">第一阶段仅验证界面与交互；不会安装、卸载或修改系统。</p>
+      <p className="detail-note">第二阶段仅检测本机环境；不会安装、卸载或修改系统。</p>
 
       <details className="detail-advanced">
         <summary>高级详情</summary>
@@ -93,14 +165,34 @@ function DetailBody({ item, interactive = false }: { item: Software; interactive
           <dt>软件标识</dt><dd>{item.id}</dd>
           <dt>分类</dt><dd>{item.category}</dd>
           <dt>计划安装机制</dt><dd>{item.source}</dd>
-          <dt>阶段</dt><dd>{STAGE_LABEL[item.stage]}</dd>
+          <dt>最后检测</dt><dd>{formatTime(refreshedAt)}</dd>
+          <dt>Homebrew</dt><dd>{homebrew ? homebrew.available ? `${homebrew.version ?? "已安装"} · ${homebrew.prefix ?? "前缀未知"}` : "未检测到" : "尚未检测"}</dd>
+          <dt>缓存状态</dt><dd>{stale ? "缓存结果，尚未重新验证" : "本次检测"}</dd>
+          <dt>检测说明</dt><dd>{detectionNote}</dd>
         </dl>
+        {errors.length > 0 && (
+          <div className="detection-errors">
+            <strong>检测警告</strong>
+            {errors.map(error => <p key={`${error.source}:${error.message}`}>{error.source}：{error.message}</p>)}
+          </div>
+        )}
       </details>
     </div>
   );
 }
 
-export function DetailOverlay({ item, origin, onClose }: { item: Software; origin: OrbOrigin; onClose: () => void }) {
+export function DetailOverlay({ item, origin, onClose, instances = [], detected = false, refreshing = false, stale = false, homebrew = null, errors = [], refreshedAt = null }: {
+  item: Software;
+  origin: OrbOrigin;
+  onClose: () => void;
+  instances?: SoftwareInstance[];
+  detected?: boolean;
+  refreshing?: boolean;
+  stale?: boolean;
+  homebrew?: HomebrewStatus | null;
+  errors?: DetectionError[];
+  refreshedAt?: number | null;
+}) {
   const reduced = useReducedMotion();
   const [width] = useState(() => Math.min(CARD_WIDTH, window.innerWidth - PAGE_PADDING * 2));
   const [target, setTarget] = useState(() => anchoredCard(origin, width, CARD_MIN_HEIGHT));
@@ -129,7 +221,7 @@ export function DetailOverlay({ item, origin, onClose }: { item: Software; origi
       cancelAnimationFrame(first);
       if (second) cancelAnimationFrame(second);
     };
-  }, [origin.left, origin.top, origin.width, origin.height, width, reduced]);
+  }, [origin.left, origin.top, origin.width, origin.height, width, reduced, instances.length, detected, refreshing, stale, instances.map(instance => `${instance.path}:${instance.version}:${instance.health}`).join("|")]);
 
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -174,10 +266,10 @@ export function DetailOverlay({ item, origin, onClose }: { item: Software; origi
   return createPortal(
     <div className="detail-layer">
       <div className="detail-catcher" onClick={close} aria-hidden="true" />
-      <div ref={measure} className="detail-measure" style={{ width }} aria-hidden="true"><DetailBody item={item} /></div>
+      <div ref={measure} className="detail-measure" style={{ width }} aria-hidden="true"><DetailBody item={item} instances={instances} detected={detected} refreshing={refreshing} stale={stale} homebrew={homebrew} errors={errors} refreshedAt={refreshedAt} /></div>
       <section ref={card} className={`morph-card${entered ? " open" : ""}`} style={geometry} role="dialog" aria-modal="true" aria-label={`${item.name} 详情`} onClick={event => event.stopPropagation()}>
         <button ref={closeButton} type="button" className="detail-close" aria-label="关闭详情" onClick={close}>×</button>
-        <DetailBody item={item} interactive />
+        <DetailBody item={item} instances={instances} detected={detected} refreshing={refreshing} stale={stale} homebrew={homebrew} errors={errors} refreshedAt={refreshedAt} interactive />
       </section>
     </div>,
     document.querySelector(".app") ?? document.body

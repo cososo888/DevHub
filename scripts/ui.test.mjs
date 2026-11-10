@@ -177,6 +177,45 @@ test("detail keeps keyboard scrolling while the scrollbar is visually hidden", a
   assert.equal(ended, 900);
 });
 
+test("detail renders real detection instances, paths and health", async () => {
+  const item = SOFTWARE.find(entry => entry.id === "node");
+  const instances = [
+    { softwareId: "node", version: "26.13.0", source: "devhubV1", sources: ["devhubV1"], path: "/Users/test/Library/Application Support/com.yujian.devhub.validation/storage-v1/versions/node/26.13.0-arm64/bin/node", kind: "cli", executable: true, managedBy: "devhub", health: "ok", detail: null, lastDetectedAt: 1 },
+    { softwareId: "node", version: "26.12.1", source: "path", sources: ["path"], path: "/usr/local/bin/node", kind: "cli", executable: true, managedBy: "system", health: "unverified", detail: "可执行文件不在受信任的检测目录", lastDetectedAt: 1 }
+  ];
+  render(React.createElement(DetailOverlay, {
+    item,
+    origin: { left: 10, top: 10, width: 90, height: 90 },
+    onClose: () => {},
+    instances,
+    detected: true,
+    refreshing: false,
+    stale: false,
+    homebrew: { available: true, prefix: "/opt/homebrew", version: "7.0.12", error: null },
+    errors: [],
+    refreshedAt: 1794308394563
+  }));
+  const dialog = await screen.findByRole("dialog", { name: "Node.js 详情" });
+  assert.match(dialog.textContent, /已安装 · 2 个版本/);
+  assert.match(dialog.textContent, /26\.13\.0/);
+  assert.match(dialog.textContent, /26\.12\.1/);
+  assert.match(dialog.textContent, /旧版 DevHub/);
+  assert.match(dialog.textContent, /未验证/);
+  assert.match(dialog.textContent, /usr\/local\/bin\/node/);
+  assert.match(dialog.textContent, /7\.0\.12/);
+  assert.equal(screen.getByRole("button", { name: /安装/ }).disabled, true);
+  assert.equal(screen.getByRole("button", { name: "卸载" }).disabled, true);
+});
+
+test("detail shows uninstalled only after a completed detection", async () => {
+  const item = SOFTWARE.find(entry => entry.id === "go");
+  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, detected: true, refreshing: false, stale: false }));
+  const dialog = await screen.findByRole("dialog", { name: "Go 详情" });
+  assert.match(dialog.textContent, /未安装/);
+  assert.match(dialog.textContent, /未检测到本机安装/);
+  assert.equal(dialog.textContent.includes("安装路径"), false);
+});
+
 test("reduced motion opens the card at its final geometry and closes without waiting", async () => {
   globalThis.__REDUCE__ = true;
   let closed = 0;
