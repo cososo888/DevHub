@@ -66,8 +66,11 @@
 
 ## 4. 截图
 
+详情截图按原生窗口内容高度（1200×800 视口）采集。
+
 - `docs/screenshots/phase1-grid-native.png`：**真实 macOS 原生窗口**，圆形网格。
-- `docs/screenshots/phase1-detail-light.png`：浅色主题，Python 圆形锚点展开。
+- `docs/screenshots/phase1-grid-light.png`：1200×800 浅色网格。
+- `docs/screenshots/phase1-detail-light.png`：浅色主题，Python 圆形左上角锚点展开（卡片 380×522）。
 - `docs/screenshots/phase1-detail-dark.png`：深色主题，Python 圆形锚点展开。
 - `docs/screenshots/phase1-detail-edge.png`：右下角 IntelliJ IDEA，卡片向左上展开且不越界。
 - `docs/screenshots/phase1-grid-dark.png`：深色网格。
