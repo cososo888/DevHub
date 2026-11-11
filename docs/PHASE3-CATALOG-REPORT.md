@@ -124,7 +124,7 @@ brew install --cask <package>
 DMG SHA-256：
 
 ```text
-aa7990bc6828fae52c0d40de7eb73f1059bd989b7dc995a5847eb5d5bd511e53
+6628c99a174a7af124079b4bda2a7fcd995c5c43baadf525ce475f5b2a1e9f8f
 ```
 
 ## 6. 安装包
@@ -151,7 +151,13 @@ dist/SHA256SUMS.txt
 - `docs/PHASE3-CATALOG-REPORT.md`、截图、`dist/` DMG
 - `docs/windows/`：Windows 交接资料；`docs/WINDOWS-PORT-REPORT.md`
 
-## 8. 尚未解决
+## 8. 本轮 UI 修复
+
+- 搜索大小写不敏感：精选匹配、Homebrew 查询和结果缓存均规范化；`GIT`/`git` 等价。
+- 已安装蓝色圆环加强：更亮边框、5px 外环和轻微蓝色光晕；深色模式单独增强。
+- 隐藏页面右缘滚动条：`html/body/#root/.app/.main` 使用隐藏滚动条规则，滚轮、触控板、键盘滚动仍可用。
+
+## 9. 尚未解决
 
 1. 未执行真实 Homebrew 安装/卸载（需要用户确认）。
 2. 搜索只展示每类最多 12、总计 24 条，不提供全库分页。

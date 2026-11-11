@@ -480,3 +480,33 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 34px); letter-spacing: -1px; font-we
 .task-log pre { max-height: 120px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; margin: 5px 0 0; padding: 7px; border-radius: 6px; background: color-mix(in srgb, var(--text) 5%, transparent); color: var(--muted); font-size: 9.5px; }
 .setup-hint { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); font-size: 11px; }
 .setup-hint button { border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text); padding: 3px 9px; font-size: 10px; cursor: pointer; }
+
+/* Stronger installed ring, especially readable in dark mode. */
+.orb.is-installed .orb-circle {
+  border-color: color-mix(in srgb, var(--accent) 88%, #fff 12%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 0 0 5px color-mix(in srgb, var(--accent) 24%, transparent),
+    0 10px 26px color-mix(in srgb, var(--accent) 18%, transparent),
+    var(--orb-shadow);
+}
+.app[data-theme="dark"] .orb.is-installed .orb-circle {
+  border-color: color-mix(in srgb, var(--accent) 78%, #fff 22%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 65%, transparent),
+    0 0 0 5px color-mix(in srgb, var(--accent) 32%, transparent),
+    0 0 24px color-mix(in srgb, var(--accent) 32%, transparent),
+    var(--orb-shadow);
+}
+
+/* Hide the page scrollbar; scrolling remains available by wheel/trackpad/keyboard. */
+html, body, #root, .app, .main {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar, #root::-webkit-scrollbar,
+.app::-webkit-scrollbar, .main::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}

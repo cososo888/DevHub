@@ -79,6 +79,8 @@ test("catalog exposes 100 unique, real Homebrew packages across eight categories
 test("search is global and ignores the selected category", () => {
   const underDev = filterCurated(SOFTWARE, "node", "开发工具");
   assert.ok(underDev.some(item => item.id === "node"));
+  assert.ok(filterCurated(SOFTWARE, "NODE", "开发工具").some(item => item.id === "node"));
+  assert.ok(filterCurated(SOFTWARE, "GIT", "开发工具").some(item => item.id === "git"));
   const noQuery = filterCurated(SOFTWARE, "", "开发工具");
   assert.ok(noQuery.length > 0);
   assert.ok(noQuery.every(item => item.category === "开发工具"));
