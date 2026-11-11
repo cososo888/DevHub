@@ -49,13 +49,25 @@ export function desktop<T>(command: string, args?: Record<string, unknown>): Pro
   return invoke<T>(command, args);
 }
 
-export interface PackagePlan {
-  softwareId: string;
+export type PackageKind = "formula" | "cask";
+
+export interface PackageVersion {
   package: string;
-  kind: "formula" | "cask";
-  installCommand: string;
-  uninstallCommand: string;
-  requirement: string;
+  version: string;
+  path: string;
+}
+
+export interface InstalledPackages {
+  formulae: PackageVersion[];
+  casks: PackageVersion[];
+}
+
+export interface HomebrewResult {
+  package: string;
+  kind: PackageKind;
+  name: string;
+  description: string;
+  version: string | null;
 }
 
 export interface InstallProgress {

@@ -154,8 +154,13 @@ fn refresh_detection(app: AppHandle, state: State<AppState>) -> bool {
 }
 
 #[tauri::command]
-fn get_software_plans() -> Vec<homebrew::PackagePlan> {
-    homebrew::plans()
+fn get_installed_packages() -> Result<homebrew::InstalledPackages, String> {
+    homebrew::installed_packages()
+}
+
+#[tauri::command]
+fn search_homebrew(query: String) -> Result<Vec<homebrew::HomebrewResult>, String> {
+    homebrew::search(&query)
 }
 
 #[tauri::command]
@@ -167,28 +172,21 @@ fn open_homebrew_site() -> Result<(), String> {
         .map_err(|error| format!("无法打开 Homebrew 页面：{error}"))
 }
 
-fn is_brew_managed(instance: &crate::detection::SoftwareInstance) -> bool {
-    instance.source == "homebrewFormula"
-        || instance.source == "homebrewCask"
-        || instance.path.contains("/Cellar/")
-        || instance.path.contains("/Caskroom/")
-        || instance.path.contains("/opt/homebrew/")
-}
-
-fn service_note(software_id: &str) -> &'static str {
-    match software_id {
-        "mysql" | "postgresql" | "redis" => "软件包已安装；数据库服务尚未自动启动",
-        _ => "安装完成，已重新检测本机环境",
+fn service_note(package: &str) -> &'static str {
+    match package {
+        "mysql" | "postgresql@17" | "redis" => "软件包已安装；数据库/缓存服务尚未自动启动",
+        _ => "安装完成，正在刷新本机环境",
     }
 }
 
 #[tauri::command]
-fn start_install(app: AppHandle, state: State<AppState>, software_id: String) -> Result<u64, String> {
-    let plan = homebrew::plan(&software_id).ok_or_else(|| "该软件没有可靠的 Homebrew 安装命令".to_string())?;
+fn start_package_install(app: AppHandle, state: State<AppState>, package: String, kind: String) -> Result<u64, String> {
     homebrew::probe().map_err(|_| "安装需要 Homebrew，请先准备 Homebrew 后重试".to_string())?;
-    let snapshot = snapshot_clone(&state).ok_or_else(|| "尚未完成本机检测，请先刷新".to_string())?;
-    if snapshot.instances.iter().any(|item| item.software_id == software_id) {
-        return Err("本机已经检测到该软件，无需重复安装".into());
+    if !homebrew::package_exists(&package, &kind)? {
+        return Err("Homebrew 中找不到该软件包".into());
+    }
+    if homebrew::package_installed(&package, &kind)? {
+        return Err("Homebrew 已经安装该软件包".into());
     }
     if state.install_busy.swap(true, Ordering::SeqCst) {
         return Err("已有安装或卸载任务正在执行".into());
@@ -198,73 +196,63 @@ fn start_install(app: AppHandle, state: State<AppState>, software_id: String) ->
     let app = app.clone();
     std::thread::spawn(move || {
         let _guard = BusyGuard(state.install_busy.clone());
-        emit_progress(&app, job_id, &software_id, &plan.package, "install", "installing", &format!("正在执行 {}", plan.install_command));
-        let output = match homebrew::install_package(&plan) {
+        let command = if kind == "cask" { format!("brew install --cask {package}") } else { format!("brew install {package}") };
+        emit_progress(&app, job_id, &package, &package, "install", "installing", &format!("正在执行 {command}"));
+        let output = match homebrew::install_package(&package, &kind) {
             Ok(value) => value,
             Err(error) => {
-                let snapshot = detect_now(&app, &state);
-                let found = snapshot.instances.iter().find(|item| item.software_id == software_id);
-                emit_finished(&app, job_id, &software_id, &plan.package, "install", false, &format!("安装失败：{error}"), &error, Some(Verification { verified: false, instance_path: found.map(|item| item.path.clone()), version: found.and_then(|item| item.version.clone()), health: found.map(|item| item.health.clone()), system_git_available: None }));
+                let _ = detect_now(&app, &state);
+                emit_finished(&app, job_id, &package, &package, "install", false, &format!("安装失败：{error}"), &error, None);
                 return;
             }
         };
-        emit_progress(&app, job_id, &software_id, &plan.package, "install", "verifying", "命令结束，正在确认实际安装结果…");
+        emit_progress(&app, job_id, &package, &package, "install", "verifying", "命令结束，正在确认 Homebrew 安装状态…");
         let snapshot = detect_now(&app, &state);
-        let found = snapshot.instances.iter().find(|item| item.software_id == software_id);
-        let package_present = homebrew::package_installed(&plan).unwrap_or(false);
+        let package_present = homebrew::package_installed(&package, &kind).unwrap_or(false);
         if !package_present {
-            emit_finished(&app, job_id, &software_id, &plan.package, "install", false, "安装命令结束，但未能确认 Homebrew 包已安装", &output, Some(Verification { verified: false, instance_path: None, version: None, health: None, system_git_available: None }));
+            emit_finished(&app, job_id, &package, &package, "install", false, "安装命令结束，但 Homebrew 未确认该软件包已安装", &output, None);
             return;
         }
-        let message = if found.is_some() { service_note(&software_id) } else { "Homebrew 包已安装；当前未检测到可执行入口，可能需要重新打开终端或该服务尚未启动" };
-        emit_finished(&app, job_id, &software_id, &plan.package, "install", true, message, &output, Some(Verification { verified: found.is_some(), instance_path: found.map(|item| item.path.clone()), version: found.and_then(|item| item.version.clone()), health: found.map(|item| item.health.clone()), system_git_available: None }));
+        let found = snapshot.instances.iter().find(|item| item.software_id == package || item.path.contains(&package));
+        let message = if found.is_some() { service_note(&package) } else { "Homebrew 包已安装；当前未检测到可执行入口，可能需要重新打开终端" };
+        emit_finished(&app, job_id, &package, &package, "install", true, message, &output, Some(Verification { verified: true, instance_path: found.map(|item| item.path.clone()), version: found.and_then(|item| item.version.clone()), health: found.map(|item| item.health.clone()), system_git_available: None }));
     });
     Ok(job_id)
 }
 
 #[tauri::command]
-fn start_uninstall(app: AppHandle, state: State<AppState>, software_id: String) -> Result<u64, String> {
-    let plan = homebrew::plan(&software_id).ok_or_else(|| "该软件没有可靠的 Homebrew 卸载命令".to_string())?;
-    let snapshot = snapshot_clone(&state).ok_or_else(|| "尚未完成本机检测，请先刷新".to_string())?;
-    let managed = snapshot.instances.iter().filter(|item| item.software_id == software_id && is_brew_managed(item)).collect::<Vec<_>>();
-    if managed.is_empty() {
-        return Err("该安装不是 Homebrew 管理，DevHub 不会直接删除文件".into());
-    }
-    if !homebrew::package_installed(&plan).unwrap_or(false) {
-        return Err("Homebrew 未记录该软件包，无法安全卸载".into());
+fn start_package_uninstall(app: AppHandle, state: State<AppState>, package: String, kind: String) -> Result<u64, String> {
+    if !homebrew::package_installed(&package, &kind)? {
+        return Err("只有 Homebrew 管理的软件包才能从 DevHub 卸载".into());
     }
     if state.install_busy.swap(true, Ordering::SeqCst) {
         return Err("已有安装或卸载任务正在执行".into());
     }
-    let history_version = managed.first().and_then(|item| item.version.clone()).unwrap_or_else(|| "unknown".into());
-    let history_path = managed.first().map(|item| item.path.clone());
+    let version = homebrew::installed_packages().ok()
+        .and_then(|state| state.formulae.into_iter().chain(state.casks).find(|item| item.package == package).map(|item| item.version))
+        .unwrap_or_else(|| "unknown".into());
     let job_id = state.job_seq.fetch_add(1, Ordering::SeqCst) + 1;
     let state = state.inner().clone();
     let app = app.clone();
     std::thread::spawn(move || {
         let _guard = BusyGuard(state.install_busy.clone());
-        emit_progress(&app, job_id, &software_id, &plan.package, "uninstall", "uninstalling", &format!("正在执行 {}", plan.uninstall_command));
-        let output = match homebrew::uninstall_package(&plan) {
-            Ok(value) => value,
-            Err(error) => {
-                let snapshot = detect_now(&app, &state);
-                let found = snapshot.instances.iter().find(|item| item.software_id == software_id);
-                emit_finished(&app, job_id, &software_id, &plan.package, "uninstall", false, &format!("卸载失败：{error}"), &error, Some(Verification { verified: false, instance_path: found.map(|item| item.path.clone()), version: found.and_then(|item| item.version.clone()), health: found.map(|item| item.health.clone()), system_git_available: None }));
-                return;
-            }
-        };
-        emit_progress(&app, job_id, &software_id, &plan.package, "uninstall", "verifying", "命令结束，正在确认软件包是否已移除…");
-        let snapshot = detect_now(&app, &state);
-        let package_present = homebrew::package_installed(&plan).unwrap_or(true);
-        let still_managed = snapshot.instances.iter().any(|item| item.software_id == software_id && is_brew_managed(item));
-        if package_present || still_managed {
-            emit_finished(&app, job_id, &software_id, &plan.package, "uninstall", false, "卸载命令结束，但仍检测到 Homebrew 管理的安装", &output, Some(Verification { verified: false, instance_path: None, version: None, health: None, system_git_available: None }));
+        let command = if kind == "cask" { format!("brew uninstall --cask {package}") } else { format!("brew uninstall {package}") };
+        emit_progress(&app, job_id, &package, &package, "uninstall", "uninstalling", &format!("正在执行 {command}"));
+        if let Err(error) = homebrew::uninstall_package(&package, &kind) {
+            let _ = detect_now(&app, &state);
+            emit_finished(&app, job_id, &package, &package, "uninstall", false, &format!("卸载失败：{error}"), &error, None);
+            return;
+        }
+        emit_progress(&app, job_id, &package, &package, "uninstall", "verifying", "命令结束，正在确认 Homebrew 包已移除…");
+        let _ = detect_now(&app, &state);
+        if homebrew::package_installed(&package, &kind).unwrap_or(true) {
+            emit_finished(&app, job_id, &package, &package, "uninstall", false, "卸载命令结束，但 Homebrew 仍报告该包已安装", "", None);
             return;
         }
         if let Ok(connection) = state.db.lock() {
-            let _ = storage::record_uninstall(&connection, &software_id, &history_version, "homebrew", history_path.as_deref(), now_ms());
+            let _ = storage::record_uninstall(&connection, &package, &version, "homebrew", None, now_ms());
         }
-        emit_finished(&app, job_id, &software_id, &plan.package, "uninstall", true, "Homebrew 包已移除；系统或其他来源的安装不会被改动", &output, Some(Verification { verified: true, instance_path: None, version: None, health: None, system_git_available: None }));
+        emit_finished(&app, job_id, &package, &package, "uninstall", true, "Homebrew 包已移除；系统或其他来源的安装不会被改动", "", None);
     });
     Ok(job_id)
 }
@@ -281,11 +269,12 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_app_status,
             get_detection_snapshot,
-            get_software_plans,
+            get_installed_packages,
+            search_homebrew,
             refresh_detection,
             open_homebrew_site,
-            start_install,
-            start_uninstall
+            start_package_install,
+            start_package_uninstall
         ])
         .run(tauri::generate_context!())
         .expect("error while running DevHub V2");

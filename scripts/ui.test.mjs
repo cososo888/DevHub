@@ -60,15 +60,19 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-test("catalog exposes a complete, unique, categorized first-phase list", () => {
-  assert.equal(SOFTWARE.length, 14);
+test("catalog exposes 100 unique, real Homebrew packages across eight categories", () => {
+  assert.equal(SOFTWARE.length, 100);
   assert.equal(new Set(SOFTWARE.map(item => item.id)).size, SOFTWARE.length);
-  assert.deepEqual(CATEGORIES, ["语言与运行时", "开发基础", "数据库与服务", "开发工具"]);
-  for (const id of ["git", "node", "jdk", "maven", "gradle", "python", "go"]) {
-    assert.ok(SOFTWARE.some(item => item.id === id), id);
+  assert.equal(new Set(SOFTWARE.map(item => `${item.kind}:${item.package}`)).size, SOFTWARE.length);
+  assert.deepEqual(CATEGORIES, ["语言与运行时", "开发工具", "终端工具", "数据库与服务", "网络与云", "容器与云", "效率工具", "设计媒体"]);
+  const counts = Object.fromEntries(CATEGORIES.map(category => [category, SOFTWARE.filter(item => item.category === category).length]));
+  assert.equal(Object.values(counts).reduce((a, b) => a + b, 0), 100);
+  assert.equal(counts["语言与运行时"], 20);
+  assert.equal(counts["开发工具"], 20);
+  for (const item of SOFTWARE) {
+    assert.ok(item.package && item.kind === "formula" || item.kind === "cask", item.id);
+    assert.ok(item.name && item.description);
   }
-  assert.equal(SOFTWARE.find(item => item.id === "git").stage, "first");
-  assert.equal(SOFTWARE.find(item => item.id === "node").stage, "first");
 });
 
 test("circle grid renders every software once and reports the orb origin", async () => {
@@ -117,14 +121,14 @@ test("toolbar expands search, filters categories, clears on close and exposes th
   const input = await screen.findByRole("textbox", { name: "搜索软件" });
   await user.type(input, "node");
   assert.equal(screen.getByTestId("state").textContent, "node|全部|system");
-  await user.click(screen.getByRole("button", { name: "开发基础" }));
-  assert.equal(screen.getByRole("button", { name: "开发基础" }).getAttribute("aria-pressed"), "true");
+  await user.click(screen.getByRole("button", { name: "开发工具" }));
+  assert.equal(screen.getByRole("button", { name: "开发工具" }).getAttribute("aria-pressed"), "true");
   await user.click(screen.getByRole("button", { name: "深色" }));
   assert.equal(screen.getByRole("button", { name: "深色" }).getAttribute("aria-pressed"), "true");
-  assert.equal(screen.getByTestId("state").textContent, "node|开发基础|dark");
+  assert.equal(screen.getByTestId("state").textContent, "node|开发工具|dark");
   await user.click(screen.getByRole("button", { name: "收起搜索" }));
   assert.equal(screen.queryByRole("textbox"), null);
-  assert.equal(screen.getByTestId("state").textContent, "|开发基础|dark");
+  assert.equal(screen.getByTestId("state").textContent, "|开发工具|dark");
 });
 
 test("anchored geometry keeps the orb as a corner and stays inside the viewport", () => {
@@ -151,14 +155,6 @@ test("anchored geometry keeps the orb as a corner and stays inside the viewport"
   assert.ok(right.top + right.height <= 713 - 16);
 });
 
-const plan = (id = "git") => ({
-  softwareId: id,
-  package: id === "go" ? "go" : "git",
-  kind: "formula",
-  installCommand: id === "go" ? "brew install go" : "brew install git",
-  uninstallCommand: id === "go" ? "brew uninstall go" : "brew uninstall git",
-  requirement: "Homebrew"
-});
 const instance = (id = "git", overrides = {}) => ({
   softwareId: id,
   version: id === "go" ? "1.27.3" : "2.56.0",
@@ -174,9 +170,9 @@ const instance = (id = "git", overrides = {}) => ({
   ...overrides
 });
 
-test("detail shows status, installed version/path and one install action", async () => {
+test("detail shows status and one install action without a version picker", async () => {
   const item = SOFTWARE.find(entry => entry.id === "go");
-  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, instances: [], plan: plan("go"), homebrewReady: true }));
+  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, instances: [], homebrewReady: true }));
   const dialog = await screen.findByRole("dialog", { name: "Go 详情" });
   await waitFor(() => assert.equal(dialog.style.width, "380px"));
   assert.match(dialog.textContent, /Go/);
@@ -186,10 +182,10 @@ test("detail shows status, installed version/path and one install action", async
   assert.equal(dialog.textContent.includes("版本列表"), false);
 });
 
-test("install requires confirmation and sends only the software action", async () => {
+test("install requires confirmation and shows the fixed brew command", async () => {
   const item = SOFTWARE.find(entry => entry.id === "go");
   let installed = 0;
-  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, instances: [], plan: plan("go"), homebrewReady: true, onInstall: () => { installed += 1; } }));
+  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, instances: [], homebrewReady: true, onInstall: () => { installed += 1; } }));
   const dialog = await screen.findByRole("dialog", { name: "Go 详情" });
   await userEvent.setup().click(screen.getByRole("button", { name: "安装 Go" }));
   assert.match(dialog.textContent, /安装 Go？/);
@@ -199,14 +195,14 @@ test("install requires confirmation and sends only the software action", async (
   assert.equal(installed, 1);
 });
 
-test("installed Homebrew package can be uninstalled only after confirmation", async () => {
+test("Homebrew-managed package can be uninstalled only after confirmation", async () => {
   const item = SOFTWARE.find(entry => entry.id === "go");
   let uninstalled = 0;
-  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, instances: [instance("go")], plan: plan("go"), homebrewReady: true, onUninstall: () => { uninstalled += 1; } }));
+  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, brewInstalled: true, brewVersion: "1.27.3", brewPath: "/opt/homebrew/opt/go", homebrewReady: true, onUninstall: () => { uninstalled += 1; } }));
   const dialog = await screen.findByRole("dialog", { name: "Go 详情" });
   assert.match(dialog.textContent, /已安装/);
   assert.match(dialog.textContent, /1\.27\.3/);
-  assert.match(dialog.textContent, /\/opt\/homebrew\/Cellar\/go/);
+  assert.match(dialog.textContent, /\/opt\/homebrew\/opt\/go/);
   await userEvent.setup().click(screen.getByRole("button", { name: "卸载 Go" }));
   assert.match(dialog.textContent, /卸载 Go？/);
   assert.match(dialog.textContent, /brew uninstall go/);
@@ -218,7 +214,7 @@ test("installed Homebrew package can be uninstalled only after confirmation", as
 test("system-installed software is shown but never offered uninstall", async () => {
   const item = SOFTWARE.find(entry => entry.id === "git");
   const system = instance("git", { source: "path", sources: ["path"], path: "/usr/bin/git", managedBy: "system" });
-  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, instances: [system], plan: plan("git"), homebrewReady: true }));
+  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, instances: [system], homebrewReady: true }));
   const dialog = await screen.findByRole("dialog", { name: "Git 详情" });
   assert.match(dialog.textContent, /已安装/);
   assert.match(dialog.textContent, /\/usr\/bin\/git/);
@@ -226,9 +222,19 @@ test("system-installed software is shown but never offered uninstall", async () 
   assert.equal(screen.queryByRole("button", { name: /卸载/ }), null);
 });
 
+test("non-Homebrew install allows a duplicate Homebrew install with a warning", async () => {
+  const item = SOFTWARE.find(entry => entry.id === "git");
+  const system = instance("git", { source: "path", sources: ["path"], path: "/usr/bin/git", managedBy: "system" });
+  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, instances: [system], homebrewReady: true }));
+  const dialog = await screen.findByRole("dialog", { name: "Git 详情" });
+  await userEvent.setup().click(screen.getByRole("button", { name: "安装 Git" }));
+  assert.match(dialog.textContent, /已有其他来源的安装/);
+  assert.match(dialog.textContent, /brew install git/);
+});
+
 test("install without Homebrew is disabled and explains the prerequisite", async () => {
   const item = SOFTWARE.find(entry => entry.id === "go");
-  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, instances: [], plan: plan("go"), homebrewReady: false }));
+  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, instances: [], homebrewReady: false }));
   const dialog = await screen.findByRole("dialog", { name: "Go 详情" });
   assert.equal(screen.getByRole("button", { name: "安装 Go" }).disabled, true);
   assert.match(dialog.textContent, /需要 Homebrew/);
@@ -236,9 +242,9 @@ test("install without Homebrew is disabled and explains the prerequisite", async
 
 test("indeterminate progress stays a single stable track across remounts", async () => {
   const item = SOFTWARE.find(entry => entry.id === "go");
-  const task = { jobId: 2, softwareId: "go", version: "latest", action: "install", stage: "installing", message: "正在安装…", percent: null };
+  const task = { jobId: 2, softwareId: "go", version: "go", action: "install", stage: "installing", message: "正在安装…", percent: null };
   for (let index = 0; index < 5; index += 1) {
-    const view = render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, instances: [], plan: plan("go"), homebrewReady: true, task }));
+    const view = render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, instances: [], homebrewReady: true, task }));
     const dialog = await screen.findByRole("dialog", { name: "Go 详情" });
     const track = dialog.querySelector(".indeterminate");
     assert.ok(track);
@@ -250,8 +256,8 @@ test("indeterminate progress stays a single stable track across remounts", async
 
 test("failed install exposes a short reason and technical log", async () => {
   const item = SOFTWARE.find(entry => entry.id === "go");
-  const result = { jobId: 1, softwareId: "go", version: "latest", action: "install", success: false, message: "安装失败：网络不可用", output: "brew stderr detail", verification: null };
-  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, instances: [], plan: plan("go"), homebrewReady: true, result }));
+  const result = { jobId: 1, softwareId: "go", version: "go", action: "install", success: false, message: "安装失败：网络不可用", output: "brew stderr detail", verification: null };
+  render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, instances: [], homebrewReady: true, result }));
   const dialog = await screen.findByRole("dialog", { name: "Go 详情" });
   assert.match(dialog.textContent, /安装失败：网络不可用/);
   assert.ok(dialog.querySelector(".task-log pre"));
@@ -274,7 +280,7 @@ test("app starts with the full grid, filters by search, and never fabricates ins
   render(React.createElement(App));
   await waitFor(() => assert.ok(document.querySelector(".orb-grid")));
   assert.equal(screen.queryByText("选择你的开发工具"), null);
-  assert.equal(screen.getAllByRole("button").filter(button => button.getAttribute("aria-label") && SOFTWARE.some(item => item.name === button.getAttribute("aria-label"))).length, 14);
+  assert.equal(screen.getAllByRole("button").filter(button => button.getAttribute("aria-label") && SOFTWARE.some(item => item.name === button.getAttribute("aria-label"))).length, 100);
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: "搜索软件" }));
   await user.type(await screen.findByRole("textbox", { name: "搜索软件" }), "git");

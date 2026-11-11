@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { desktop } from "../lib/ipc";
-import type { InstallFinished, InstallProgress } from "../lib/ipc";
+import type { InstallFinished, InstallProgress, PackageKind } from "../lib/ipc";
 
 export function useInstallTask() {
   const [task, setTask] = useState<InstallProgress | null>(null);
@@ -32,12 +32,12 @@ export function useInstallTask() {
     };
   }, []);
 
-  const start = useCallback(async (action: "install" | "uninstall", softwareId: string) => {
+  const start = useCallback(async (action: "install" | "uninstall", packageName: string, kind: PackageKind) => {
     setError(null);
     setResult(null);
-    setTask({ jobId: 0, softwareId, version: "latest", action, stage: "starting", message: action === "install" ? "正在提交安装…" : "正在提交卸载…", percent: null });
+    setTask({ jobId: 0, softwareId: packageName, version: packageName, action, stage: "starting", message: action === "install" ? "正在提交安装…" : "正在提交卸载…", percent: null });
     try {
-      await desktop<number>(action === "install" ? "start_install" : "start_uninstall", { softwareId });
+      await desktop<number>(action === "install" ? "start_package_install" : "start_package_uninstall", { package: packageName, kind });
     } catch (value) {
       setTask(null);
       setError(String(value));
@@ -48,8 +48,7 @@ export function useInstallTask() {
     task,
     result,
     error,
-    install: (softwareId: string) => start("install", softwareId),
-    uninstall: (softwareId: string) => start("uninstall", softwareId),
-    clearResult: () => setResult(null)
+    install: (packageName: string, kind: PackageKind) => start("install", packageName, kind),
+    uninstall: (packageName: string, kind: PackageKind) => start("uninstall", packageName, kind)
   };
 }

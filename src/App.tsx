@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SOFTWARE } from "./catalog";
 import type { Software } from "./catalog";
 import { DetailOverlay } from "./components/DetailOverlay";
@@ -9,11 +9,31 @@ import { useDetection } from "./hooks/useDetection";
 import { useInstallTask } from "./hooks/useInstallTask";
 import { useTheme } from "./hooks/useTheme";
 import { desktop } from "./lib/ipc";
-import type { AppStatus, PackagePlan, SoftwareInstance } from "./lib/ipc";
+import type { AppStatus, HomebrewResult, InstalledPackages, PackageKind, PackageVersion, SoftwareInstance } from "./lib/ipc";
 
 function formatUpdated(value: number | null | undefined) {
   if (!value) return "尚未检测";
   return new Date(value).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+function packageKey(kind: PackageKind, packageName: string) {
+  return `${kind}:${packageName}`;
+}
+
+function remoteSoftware(result: HomebrewResult): Software {
+  const safe = result.package.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return {
+    id: `brew-${result.kind}-${safe}`,
+    name: result.name || result.package,
+    category: "Homebrew 搜索",
+    description: result.description || "Homebrew 软件包",
+    popularity: 0,
+    accent: "#6B7280",
+    source: result.kind === "cask" ? "Homebrew cask" : "Homebrew formula",
+    stage: "planned",
+    package: result.package,
+    kind: result.kind
+  };
 }
 
 export default function App() {
@@ -25,15 +45,12 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [selected, setSelected] = useState<{ item: Software; origin: OrbOrigin } | null>(null);
   const [status, setStatus] = useState<AppStatus | null>(null);
-  const [plans, setPlans] = useState<Record<string, PackagePlan>>({});
-
-  useEffect(() => {
-    let live = true;
-    desktop<PackagePlan[]>("get_software_plans")
-      .then(values => { if (live) setPlans(Object.fromEntries(values.map(value => [value.softwareId, value]))); })
-      .catch(() => { if (live) setPlans({}); });
-    return () => { live = false; };
-  }, []);
+  const [packages, setPackages] = useState<InstalledPackages>({ formulae: [], casks: [] });
+  const [remote, setRemote] = useState<HomebrewResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchRetry, setSearchRetry] = useState(0);
+  const searchCache = useRef(new Map<string, HomebrewResult[]>());
 
   useEffect(() => {
     let live = true;
@@ -42,6 +59,46 @@ export default function App() {
       .catch(() => { if (live) setStatus(null); });
     return () => { live = false; };
   }, []);
+
+  useEffect(() => {
+    let live = true;
+    desktop<InstalledPackages>("get_installed_packages")
+      .then(value => { if (live) setPackages(value); })
+      .catch(() => { if (live) setPackages({ formulae: [], casks: [] }); });
+    return () => { live = false; };
+  }, [snapshot?.refreshedAt, install.result?.jobId]);
+
+  useEffect(() => {
+    const text = query.trim();
+    if (text.length < 2) {
+      setRemote([]);
+      setSearching(false);
+      setSearchError(null);
+      return;
+    }
+    const key = text.toLowerCase();
+    const cached = searchCache.current.get(key);
+    if (cached) {
+      setRemote(cached);
+      setSearching(false);
+      setSearchError(null);
+      return;
+    }
+    let active = true;
+    setSearching(true);
+    setSearchError(null);
+    const timer = window.setTimeout(() => {
+      desktop<HomebrewResult[]>("search_homebrew", { query: text })
+        .then(results => {
+          if (!active) return;
+          searchCache.current.set(key, results);
+          setRemote(results);
+        })
+        .catch(value => { if (active) { setRemote([]); setSearchError(String(value)); } })
+        .finally(() => { if (active) setSearching(false); });
+    }, 320);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [query, searchRetry]);
 
   const instancesBySoftware = useMemo(() => {
     const map = new Map<string, SoftwareInstance[]>();
@@ -53,19 +110,50 @@ export default function App() {
     return map;
   }, [snapshot]);
 
-  const installed = useMemo(() => new Set(instancesBySoftware.keys()), [instancesBySoftware]);
+  const brewMap = useMemo(() => {
+    const map = new Map<string, PackageVersion>();
+    for (const item of [...packages.formulae, ...packages.casks]) {
+      map.set(packageKey(item.package.includes(":") ? "cask" : "formula", item.package), item);
+    }
+    // The backend does not encode kind in PackageVersion; rebuild from the two arrays.
+    map.clear();
+    for (const item of packages.formulae) map.set(packageKey("formula", item.package), item);
+    for (const item of packages.casks) map.set(packageKey("cask", item.package), item);
+    return map;
+  }, [packages]);
 
-  const items = useMemo(() => {
+  const isInstalled = (item: Software) => instancesBySoftware.has(item.id) || brewMap.has(packageKey(item.kind, item.package));
+
+  const curated = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return SOFTWARE
-      .filter(item => (category === "全部" || item.category === category) && (!needle || item.name.toLowerCase().includes(needle)))
-      .sort((a, b) => Number(installed.has(b.id)) - Number(installed.has(a.id)) || b.popularity - a.popularity);
-  }, [category, query, installed]);
+      .filter(item => (category === "全部" || item.category === category) && (!needle || item.name.toLowerCase().includes(needle) || item.package.toLowerCase().includes(needle)))
+      .sort((a, b) => Number(isInstalled(b)) - Number(isInstalled(a)) || b.popularity - a.popularity);
+  }, [category, query, instancesBySoftware, brewMap]);
 
-  const selectedId = selected?.item.id ?? null;
-  const selectedInstances = selectedId ? instancesBySoftware.get(selectedId) ?? [] : [];
-  const selectedPlan = selectedId ? plans[selectedId] ?? null : null;
-  const busyIds = useMemo(() => new Set(install.task ? [install.task.softwareId] : []), [install.task]);
+  const remoteItems = useMemo(() => {
+    if (query.trim().length < 2) return [];
+    const seen = new Set(SOFTWARE.map(item => packageKey(item.kind, item.package)));
+    const values: Software[] = [];
+    for (const result of remote) {
+      const key = packageKey(result.kind, result.package);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      values.push(remoteSoftware(result));
+    }
+    return values.sort((a, b) => a.name.localeCompare(b.name));
+  }, [query, remote]);
+
+  const items = useMemo(() => [...curated, ...remoteItems], [curated, remoteItems]);
+  const installedIds = useMemo(() => new Set(items.filter(isInstalled).map(item => item.id)), [items, instancesBySoftware, brewMap]);
+  const searchText = query.trim();
+  const searchCount = remoteItems.length;
+  const selectedInstances = selected ? instancesBySoftware.get(selected.item.id) ?? [] : [];
+  const selectedBrew = selected ? brewMap.get(packageKey(selected.item.kind, selected.item.package)) ?? null : null;
+  const busyIds = useMemo(() => {
+    if (!install.task) return new Set<string>();
+    return new Set(items.filter(item => item.package === install.task?.softwareId).map(item => item.id));
+  }, [install.task, items]);
   const instanceCount = snapshot?.instances?.length ?? 0;
   const cacheState = !snapshot
     ? refreshing ? "正在读取本机环境…" : "尚未检测"
@@ -115,9 +203,18 @@ export default function App() {
             <button type="button" onClick={() => void refresh()}>重新检查</button>
           </div>
         )}
+        {searchText.length >= 2 && (
+          <div className="search-status" role="status">
+            {searching
+              ? "正在搜索 Homebrew 全库…"
+              : searchError
+                ? <><span>Homebrew 搜索失败：{searchError}</span><button type="button" onClick={() => setSearchRetry(value => value + 1)}>重试</button></>
+                : <span>精选 {curated.length} 款 · Homebrew 全库 {searchCount} 款</span>}
+          </div>
+        )}
         {items.length > 0
-          ? <OrbGrid items={items} installed={installed} installing={busyIds} sourceId={selectedId} onOpen={(item, origin) => setSelected({ item, origin })} />
-          : <div className="empty">没有匹配的软件，换个关键词或分类试试。</div>}
+          ? <OrbGrid items={items} installed={installedIds} installing={busyIds} sourceId={selected?.item.id ?? null} onOpen={(item, origin) => setSelected({ item, origin })} />
+          : <div className="empty">{searching ? "正在搜索 Homebrew…" : "没有匹配的软件，换个关键词或分类试试。"}</div>}
         <p className="footnote">
           {status ? `${status.product} · Phase ${status.phase}` : "DevHub V2 · Phase 3"} · 检测只读 · 安装需确认
         </p>
@@ -127,13 +224,15 @@ export default function App() {
           item={selected.item}
           origin={selected.origin}
           instances={selectedInstances}
-          plan={selectedPlan}
+          brewInstalled={Boolean(selectedBrew)}
+          brewVersion={selectedBrew?.version ?? null}
+          brewPath={selectedBrew?.path ?? null}
           homebrewReady={Boolean(snapshot?.homebrew.available)}
-          task={install.task && install.task.softwareId === selectedId ? install.task : null}
-          result={install.result && install.result.softwareId === selectedId ? install.result : null}
+          task={install.task && install.task.softwareId === selected.item.package ? install.task : null}
+          result={install.result && install.result.softwareId === selected.item.package ? install.result : null}
           actionError={install.error}
-          onInstall={() => void install.install(selected.item.id)}
-          onUninstall={() => void install.uninstall(selected.item.id)}
+          onInstall={() => void install.install(selected.item.package, selected.item.kind)}
+          onUninstall={() => void install.uninstall(selected.item.package, selected.item.kind)}
           onClose={() => setSelected(null)}
         />
       )}

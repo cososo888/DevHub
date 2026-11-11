@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { Software } from "../catalog";
 import { useReducedMotion } from "../hooks/useReducedMotion";
-import type { InstallFinished, InstallProgress, PackagePlan, SoftwareInstance } from "../lib/ipc";
+import type { InstallFinished, InstallProgress, SoftwareInstance } from "../lib/ipc";
 import { SoftwareLogo } from "./SoftwareLogo";
 
 export interface OrbOrigin {
@@ -44,18 +44,12 @@ export function anchoredCard(origin: OrbOrigin, width: number, height: number, v
   return { left, top, width: w, height: natural };
 }
 
-function isBrewManaged(instance: SoftwareInstance) {
-  return instance.source === "homebrewFormula"
-    || instance.source === "homebrewCask"
-    || instance.path.includes("/Cellar/")
-    || instance.path.includes("/Caskroom/")
-    || instance.path.includes("/opt/homebrew/");
-}
-
-function DetailBody({ item, instances, plan, homebrewReady, task, result, actionError, confirm, onConfirm, onInstall, onUninstall, interactive = false }: {
+function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, homebrewReady, task, result, actionError, confirm, onConfirm, onInstall, onUninstall, interactive = false }: {
   item: Software;
   instances: SoftwareInstance[];
-  plan: PackagePlan | null;
+  brewInstalled: boolean;
+  brewVersion: string | null;
+  brewPath: string | null;
   homebrewReady: boolean;
   task: InstallProgress | null;
   result: InstallFinished | null;
@@ -66,9 +60,13 @@ function DetailBody({ item, instances, plan, homebrewReady, task, result, action
   onUninstall: () => void;
   interactive?: boolean;
 }) {
-  const installed = instances.length > 0;
-  const canUninstall = instances.some(isBrewManaged);
+  const installed = instances.length > 0 || brewInstalled;
+  const nonBrewInstalled = instances.length > 0 && !brewInstalled;
   const busy = Boolean(task);
+  const packageName = item.package;
+  const installCommand = item.kind === "cask" ? `brew install --cask ${packageName}` : `brew install ${packageName}`;
+  const uninstallCommand = item.kind === "cask" ? `brew uninstall --cask ${packageName}` : `brew uninstall ${packageName}`;
+  const showBrewLine = brewInstalled && !instances.some(instance => instance.path.includes("/Cellar/") || instance.path.includes("/Caskroom/") || instance.path.includes("/opt/homebrew/"));
   const log = result?.output || actionError || "";
   return (
     <div className="detail-inner" tabIndex={interactive ? 0 : undefined} role={interactive ? "region" : undefined} aria-label={interactive ? `${item.name} 详情内容` : undefined}>
@@ -79,10 +77,11 @@ function DetailBody({ item, instances, plan, homebrewReady, task, result, action
 
       <div className="env-summary">
         <span className={`env-state${installed ? " installed" : ""}`}>{installed ? "已安装" : "未安装"}</span>
-        {installed && !canUninstall && <span className="managed-note">系统或其他方式安装，仅查看</span>}
+        {brewInstalled && <span className="managed-note">Homebrew 管理</span>}
+        {nonBrewInstalled && <span className="managed-note">系统或其他方式安装，仅查看</span>}
       </div>
 
-      {instances.length > 0 && (
+      {(instances.length > 0 || showBrewLine) && (
         <div className="instance-list">
           {instances.map(instance => (
             <div className="instance-line" key={`${instance.path}:${instance.version ?? ""}`}>
@@ -90,24 +89,30 @@ function DetailBody({ item, instances, plan, homebrewReady, task, result, action
               <small>{instance.path}</small>
             </div>
           ))}
+          {showBrewLine && (
+            <div className="instance-line" key="brew-package">
+              <span>{brewVersion ?? "已安装"}</span>
+              <small>{brewPath ?? `Homebrew · ${packageName}`}</small>
+            </div>
+          )}
         </div>
       )}
 
       <div className="env-actions">
-        {!installed && plan && (
-          <button type="button" className="primary" aria-label={`安装 ${item.name}`} disabled={!homebrewReady || busy || Boolean(confirm)} onClick={() => onConfirm("install")}>安装</button>
+        {!brewInstalled && !busy && !confirm && (
+          <button type="button" className="primary" aria-label={`安装 ${item.name}`} disabled={!homebrewReady} onClick={() => onConfirm("install")}>安装</button>
         )}
-        {installed && canUninstall && plan && (
-          <button type="button" aria-label={`卸载 ${item.name}`} disabled={busy || Boolean(confirm)} onClick={() => onConfirm("uninstall")}>卸载</button>
+        {brewInstalled && !busy && !confirm && (
+          <button type="button" aria-label={`卸载 ${item.name}`} onClick={() => onConfirm("uninstall")}>卸载</button>
         )}
-        {!plan && <span className="managed-note">暂无可靠的终端安装方式</span>}
-        {plan && !homebrewReady && !installed && <span className="managed-note">安装需要 Homebrew</span>}
+        {!homebrewReady && !brewInstalled && <span className="managed-note">安装需要 Homebrew</span>}
       </div>
 
-      {confirm && plan && (
+      {confirm && (
         <div className="row-confirm">
           <span>{confirm === "install" ? `安装 ${item.name}？` : `卸载 ${item.name}？`}</span>
-          <small className="command-line">{confirm === "install" ? plan.installCommand : plan.uninstallCommand}</small>
+          <small className="command-line">{confirm === "install" ? installCommand : uninstallCommand}</small>
+          {confirm === "install" && nonBrewInstalled && <small>本机已有其他来源的安装；继续会再安装一份 Homebrew 版本。</small>}
           {confirm === "uninstall" && <small>只移除 Homebrew 管理的文件；不会删除项目或用户数据。</small>}
           <div className="row-confirm-actions">
             <button type="button" className="primary" onClick={() => { onConfirm(null); confirm === "install" ? onInstall() : onUninstall(); }}>确认</button>
@@ -144,12 +149,14 @@ function DetailBody({ item, instances, plan, homebrewReady, task, result, action
   );
 }
 
-export function DetailOverlay({ item, origin, onClose, instances = [], plan = null, homebrewReady = false, task = null, result = null, actionError = null, onInstall, onUninstall }: {
+export function DetailOverlay({ item, origin, onClose, instances = [], brewInstalled = false, brewVersion = null, brewPath = null, homebrewReady = false, task = null, result = null, actionError = null, onInstall, onUninstall }: {
   item: Software;
   origin: OrbOrigin;
   onClose: () => void;
   instances?: SoftwareInstance[];
-  plan?: PackagePlan | null;
+  brewInstalled?: boolean;
+  brewVersion?: string | null;
+  brewPath?: string | null;
   homebrewReady?: boolean;
   task?: InstallProgress | null;
   result?: InstallFinished | null;
@@ -193,7 +200,7 @@ export function DetailOverlay({ item, origin, onClose, instances = [], plan = nu
       second = requestAnimationFrame(() => setEntered(true));
     });
     return () => { cancelAnimationFrame(first); if (second) cancelAnimationFrame(second); };
-  }, [origin.left, origin.top, origin.width, origin.height, width, viewport.width, viewport.height, reduced, instanceSignature, task?.message, result, actionError, confirm, plan?.package, homebrewReady]);
+  }, [origin.left, origin.top, origin.width, origin.height, width, viewport.width, viewport.height, reduced, instanceSignature, task?.message, result, actionError, confirm, item.package, brewInstalled, brewVersion, brewPath, homebrewReady]);
 
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -220,13 +227,13 @@ export function DetailOverlay({ item, origin, onClose, instances = [], plan = nu
   const geometry: CSSProperties = entered
     ? { left: target.left, top: target.top, width: target.width, height: target.height, borderRadius: RADIUS }
     : { left: origin.left, top: origin.top, width: origin.width, height: origin.height, borderRadius: Math.max(1, origin.width / 2) };
-  const body = <DetailBody item={item} instances={instances} plan={plan} homebrewReady={homebrewReady} task={task} result={result} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} interactive />;
+  const body = <DetailBody item={item} instances={instances} brewInstalled={brewInstalled} brewVersion={brewVersion} brewPath={brewPath} homebrewReady={homebrewReady} task={task} result={result} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} interactive />;
 
   return createPortal(
     <div className="detail-layer">
       <div className="detail-catcher" onClick={close} aria-hidden="true" />
       <div ref={measure} className="detail-measure" style={{ width }} aria-hidden="true">
-        <DetailBody item={item} instances={instances} plan={plan} homebrewReady={homebrewReady} task={task} result={result} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} />
+        <DetailBody item={item} instances={instances} brewInstalled={brewInstalled} brewVersion={brewVersion} brewPath={brewPath} homebrewReady={homebrewReady} task={task} result={result} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} />
       </div>
       <section ref={card} className={`morph-card${entered ? " open" : ""}${closing ? " closing" : ""}`} style={{ ...geometry, "--orb-accent": item.accent } as CSSProperties} role="dialog" aria-modal="true" aria-label={`${item.name} 详情`} onClick={event => event.stopPropagation()}>
         <span className="morph-logo" aria-hidden="true"><SoftwareLogo id={item.id} name={item.name} /></span>

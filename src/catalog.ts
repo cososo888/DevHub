@@ -1,165 +1,126 @@
-export const CATEGORIES = ["语言与运行时", "开发基础", "数据库与服务", "开发工具"] as const;
+export const CATEGORIES = ["语言与运行时", "开发工具", "终端工具", "数据库与服务", "网络与云", "容器与云", "效率工具", "设计媒体"] as const;
 export type Category = (typeof CATEGORIES)[number];
+export type PackageKind = "formula" | "cask";
 export type Stage = "first" | "planned" | "later";
 
 export interface Software {
   id: string;
   name: string;
-  category: Category;
+  category: Category | "Homebrew 搜索";
   description: string;
-  /** Larger means earlier in the not-installed grid. */
   popularity: number;
   accent: string;
-  /** Planned installation mechanism, shown honestly in phase 1. */
   source: string;
   stage: Stage;
+  package: string;
+  kind: PackageKind;
 }
 
 export const STAGE_LABEL: Record<Stage, string> = {
   first: "首批支持",
-  planned: "后续支持",
-  later: "再后续支持"
+  planned: "Homebrew 安装",
+  later: "Homebrew 安装"
 };
 
 export const SOFTWARE: Software[] = [
-  {
-    id: "python",
-    name: "Python",
-    category: "语言与运行时",
-    description: "数据分析、自动化与 AI 开发最常用的运行时。",
-    popularity: 100,
-    accent: "#4B8BBE",
-    source: "官方发行版 / Homebrew",
-    stage: "planned"
-  },
-  {
-    id: "node",
-    name: "Node.js",
-    category: "语言与运行时",
-    description: "JavaScript 与前端工具链的运行时。",
-    popularity: 98,
-    accent: "#5FA04E",
-    source: "DevHub 受管官方发行物",
-    stage: "first"
-  },
-  {
-    id: "git",
-    name: "Git",
-    category: "开发基础",
-    description: "版本控制，几乎每个项目都需要的开发基础工具。",
-    popularity: 96,
-    accent: "#F05032",
-    source: "Homebrew formula",
-    stage: "first"
-  },
-  {
-    id: "vscode",
-    name: "VS Code",
-    category: "开发工具",
-    description: "轻量、扩展丰富的代码编辑器。",
-    popularity: 92,
-    accent: "#007ACC",
-    source: "Homebrew cask（后续）",
-    stage: "later"
-  },
-  {
-    id: "jdk",
-    name: "JDK",
-    category: "语言与运行时",
-    description: "Java 开发与运行环境，Maven、Gradle 的基础。",
-    popularity: 90,
-    accent: "#E76F00",
-    source: "Homebrew openjdk / 官方发行版",
-    stage: "planned"
-  },
-  {
-    id: "go",
-    name: "Go",
-    category: "语言与运行时",
-    description: "编译型语言与标准工具链，适合服务端开发。",
-    popularity: 86,
-    accent: "#00ADD8",
-    source: "官方发行版 / Homebrew",
-    stage: "planned"
-  },
-  {
-    id: "docker",
-    name: "Docker",
-    category: "数据库与服务",
-    description: "用容器隔离和运行开发服务。",
-    popularity: 80,
-    accent: "#2496ED",
-    source: "暂缓（需要管理员权限或虚拟机）",
-    stage: "later"
-  },
-  {
-    id: "mysql",
-    name: "MySQL",
-    category: "数据库与服务",
-    description: "常见的关系型数据库。",
-    popularity: 78,
-    accent: "#00758F",
-    source: "Homebrew + 服务（后续）",
-    stage: "later"
-  },
-  {
-    id: "postgresql",
-    name: "PostgreSQL",
-    category: "数据库与服务",
-    description: "功能完整的关系型数据库。",
-    popularity: 76,
-    accent: "#336791",
-    source: "Homebrew + 服务（后续）",
-    stage: "later"
-  },
-  {
-    id: "maven",
-    name: "Maven",
-    category: "开发基础",
-    description: "Java 项目的构建与依赖管理工具。",
-    popularity: 74,
-    accent: "#C71A36",
-    source: "Homebrew formula",
-    stage: "planned"
-  },
-  {
-    id: "gradle",
-    name: "Gradle",
-    category: "开发基础",
-    description: "多语言项目构建工具，Android 开发常用。",
-    popularity: 72,
-    accent: "#02303A",
-    source: "Homebrew formula",
-    stage: "planned"
-  },
-  {
-    id: "redis",
-    name: "Redis",
-    category: "数据库与服务",
-    description: "内存数据结构与缓存服务。",
-    popularity: 68,
-    accent: "#DC382D",
-    source: "Homebrew + 服务（后续）",
-    stage: "later"
-  },
-  {
-    id: "rust",
-    name: "Rust",
-    category: "语言与运行时",
-    description: "注重内存安全与性能的系统编程语言。",
-    popularity: 64,
-    accent: "#CE422B",
-    source: "rustup（后续）",
-    stage: "later"
-  },
-  {
-    id: "intellij",
-    name: "IntelliJ IDEA",
-    category: "开发工具",
-    description: "面向 JVM 的重量级集成开发环境。",
-    popularity: 60,
-    accent: "#FE315D",
-    source: "Homebrew cask（后续）",
-    stage: "later"
-  }
+  {"id": "python", "name": "Python", "category": "语言与运行时", "description": "数据分析、自动化与 AI 开发最常用的运行时。", "popularity": 1000, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "first", "package": "python", "kind": "formula"},
+  {"id": "node", "name": "Node.js", "category": "语言与运行时", "description": "JavaScript 与前端工具链的运行时。", "popularity": 999, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "first", "package": "node", "kind": "formula"},
+  {"id": "git", "name": "Git", "category": "开发工具", "description": "版本控制，几乎每个项目都需要的开发基础工具。", "popularity": 998, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "first", "package": "git", "kind": "formula"},
+  {"id": "vscode", "name": "VS Code", "category": "开发工具", "description": "轻量、扩展丰富的代码编辑器。", "popularity": 997, "accent": "#5B6CFF", "source": "Homebrew cask", "stage": "first", "package": "visual-studio-code", "kind": "cask"},
+  {"id": "jdk", "name": "JDK", "category": "语言与运行时", "description": "Java 开发与运行环境，Maven、Gradle 的基础。", "popularity": 996, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "first", "package": "openjdk", "kind": "formula"},
+  {"id": "go", "name": "Go", "category": "语言与运行时", "description": "编译型语言与标准工具链，适合服务端开发。", "popularity": 995, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "first", "package": "go", "kind": "formula"},
+  {"id": "docker", "name": "Docker", "category": "容器与云", "description": "用容器隔离和运行开发服务。", "popularity": 994, "accent": "#2496ED", "source": "Homebrew cask", "stage": "first", "package": "docker", "kind": "cask"},
+  {"id": "mysql", "name": "MySQL", "category": "数据库与服务", "description": "常见的关系型数据库。", "popularity": 993, "accent": "#00758F", "source": "Homebrew formula", "stage": "first", "package": "mysql", "kind": "formula"},
+  {"id": "postgresql", "name": "PostgreSQL", "category": "数据库与服务", "description": "功能完整的关系型数据库。", "popularity": 992, "accent": "#00758F", "source": "Homebrew formula", "stage": "first", "package": "postgresql@17", "kind": "formula"},
+  {"id": "maven", "name": "Maven", "category": "开发工具", "description": "Java 项目的构建与依赖管理工具。", "popularity": 991, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "first", "package": "maven", "kind": "formula"},
+  {"id": "gradle", "name": "Gradle", "category": "开发工具", "description": "多语言项目构建工具，Android 开发常用。", "popularity": 990, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "first", "package": "gradle", "kind": "formula"},
+  {"id": "redis", "name": "Redis", "category": "数据库与服务", "description": "内存数据结构与缓存服务。", "popularity": 989, "accent": "#00758F", "source": "Homebrew formula", "stage": "first", "package": "redis", "kind": "formula"},
+  {"id": "rust", "name": "Rust", "category": "语言与运行时", "description": "注重内存安全与性能的系统编程语言。", "popularity": 988, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "first", "package": "rust", "kind": "formula"},
+  {"id": "intellij", "name": "IntelliJ IDEA", "category": "开发工具", "description": "面向 JVM 的重量级集成开发环境。", "popularity": 987, "accent": "#5B6CFF", "source": "Homebrew cask", "stage": "first", "package": "intellij-idea", "kind": "cask"},
+  {"id": "ruby", "name": "Ruby", "category": "语言与运行时", "description": "Ruby 编程语言与运行时环境，使用 Homebrew 安装和管理。", "popularity": 986, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "planned", "package": "ruby", "kind": "formula"},
+  {"id": "php", "name": "PHP", "category": "语言与运行时", "description": "PHP 编程语言与运行时环境，使用 Homebrew 安装和管理。", "popularity": 985, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "planned", "package": "php", "kind": "formula"},
+  {"id": "lua", "name": "Lua", "category": "语言与运行时", "description": "Lua 编程语言与运行时环境，使用 Homebrew 安装和管理。", "popularity": 984, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "planned", "package": "lua", "kind": "formula"},
+  {"id": "deno", "name": "Deno", "category": "语言与运行时", "description": "Deno 编程语言与运行时环境，使用 Homebrew 安装和管理。", "popularity": 983, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "planned", "package": "deno", "kind": "formula"},
+  {"id": "bun", "name": "Bun", "category": "语言与运行时", "description": "Bun 编程语言与运行时环境，使用 Homebrew 安装和管理。", "popularity": 982, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "planned", "package": "bun", "kind": "formula"},
+  {"id": "elixir", "name": "Elixir", "category": "语言与运行时", "description": "Elixir 编程语言与运行时环境，使用 Homebrew 安装和管理。", "popularity": 981, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "planned", "package": "elixir", "kind": "formula"},
+  {"id": "erlang", "name": "Erlang", "category": "语言与运行时", "description": "Erlang 编程语言与运行时环境，使用 Homebrew 安装和管理。", "popularity": 980, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "planned", "package": "erlang", "kind": "formula"},
+  {"id": "julia", "name": "Julia", "category": "语言与运行时", "description": "Julia 编程语言与运行时环境，使用 Homebrew 安装和管理。", "popularity": 979, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "planned", "package": "julia", "kind": "formula"},
+  {"id": "kotlin", "name": "Kotlin", "category": "语言与运行时", "description": "Kotlin 编程语言与运行时环境，使用 Homebrew 安装和管理。", "popularity": 978, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "planned", "package": "kotlin", "kind": "formula"},
+  {"id": "scala", "name": "Scala", "category": "语言与运行时", "description": "Scala 编程语言与运行时环境，使用 Homebrew 安装和管理。", "popularity": 977, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "planned", "package": "scala", "kind": "formula"},
+  {"id": "groovy", "name": "Groovy", "category": "语言与运行时", "description": "Groovy 编程语言与运行时环境，使用 Homebrew 安装和管理。", "popularity": 976, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "planned", "package": "groovy", "kind": "formula"},
+  {"id": "dotnet", "name": ".NET", "category": "语言与运行时", "description": ".NET 编程语言与运行时环境，使用 Homebrew 安装和管理。", "popularity": 975, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "planned", "package": "dotnet", "kind": "formula"},
+  {"id": "zig", "name": "Zig", "category": "语言与运行时", "description": "Zig 编程语言与运行时环境，使用 Homebrew 安装和管理。", "popularity": 974, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "planned", "package": "zig", "kind": "formula"},
+  {"id": "nim", "name": "Nim", "category": "语言与运行时", "description": "Nim 编程语言与运行时环境，使用 Homebrew 安装和管理。", "popularity": 973, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "planned", "package": "nim", "kind": "formula"},
+  {"id": "crystal", "name": "Crystal", "category": "语言与运行时", "description": "Crystal 编程语言与运行时环境，使用 Homebrew 安装和管理。", "popularity": 972, "accent": "#4B8BBE", "source": "Homebrew formula", "stage": "planned", "package": "crystal", "kind": "formula"},
+  {"id": "cmake", "name": "CMake", "category": "开发工具", "description": "CMake，常用的开发、构建或协作工具。", "popularity": 971, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "planned", "package": "cmake", "kind": "formula"},
+  {"id": "ninja", "name": "Ninja", "category": "开发工具", "description": "Ninja，常用的开发、构建或协作工具。", "popularity": 970, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "planned", "package": "ninja", "kind": "formula"},
+  {"id": "make", "name": "GNU Make", "category": "开发工具", "description": "GNU Make，常用的开发、构建或协作工具。", "popularity": 969, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "planned", "package": "make", "kind": "formula"},
+  {"id": "pkg-config", "name": "pkg-config", "category": "开发工具", "description": "pkg-config，常用的开发、构建或协作工具。", "popularity": 968, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "planned", "package": "pkg-config", "kind": "formula"},
+  {"id": "autoconf", "name": "Autoconf", "category": "开发工具", "description": "Autoconf，常用的开发、构建或协作工具。", "popularity": 967, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "planned", "package": "autoconf", "kind": "formula"},
+  {"id": "automake", "name": "Automake", "category": "开发工具", "description": "Automake，常用的开发、构建或协作工具。", "popularity": 966, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "planned", "package": "automake", "kind": "formula"},
+  {"id": "libtool", "name": "Libtool", "category": "开发工具", "description": "Libtool，常用的开发、构建或协作工具。", "popularity": 965, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "planned", "package": "libtool", "kind": "formula"},
+  {"id": "meson", "name": "Meson", "category": "开发工具", "description": "Meson，常用的开发、构建或协作工具。", "popularity": 964, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "planned", "package": "meson", "kind": "formula"},
+  {"id": "bazel", "name": "Bazel", "category": "开发工具", "description": "Bazel，常用的开发、构建或协作工具。", "popularity": 963, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "planned", "package": "bazel", "kind": "formula"},
+  {"id": "bazelisk", "name": "Bazelisk", "category": "开发工具", "description": "Bazelisk，常用的开发、构建或协作工具。", "popularity": 962, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "planned", "package": "bazelisk", "kind": "formula"},
+  {"id": "sbt", "name": "sbt", "category": "开发工具", "description": "sbt，常用的开发、构建或协作工具。", "popularity": 961, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "planned", "package": "sbt", "kind": "formula"},
+  {"id": "git-lfs", "name": "Git LFS", "category": "开发工具", "description": "Git LFS，常用的开发、构建或协作工具。", "popularity": 960, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "planned", "package": "git-lfs", "kind": "formula"},
+  {"id": "gh", "name": "GitHub CLI", "category": "开发工具", "description": "GitHub CLI，常用的开发、构建或协作工具。", "popularity": 959, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "planned", "package": "gh", "kind": "formula"},
+  {"id": "lazygit", "name": "Lazygit", "category": "开发工具", "description": "Lazygit，常用的开发、构建或协作工具。", "popularity": 958, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "planned", "package": "lazygit", "kind": "formula"},
+  {"id": "pre-commit", "name": "pre-commit", "category": "开发工具", "description": "pre-commit，常用的开发、构建或协作工具。", "popularity": 957, "accent": "#5B6CFF", "source": "Homebrew formula", "stage": "planned", "package": "pre-commit", "kind": "formula"},
+  {"id": "tmux", "name": "tmux", "category": "终端工具", "description": "tmux 终端效率工具，改善命令行工作流。", "popularity": 956, "accent": "#2E8B57", "source": "Homebrew formula", "stage": "planned", "package": "tmux", "kind": "formula"},
+  {"id": "zsh", "name": "Zsh", "category": "终端工具", "description": "Zsh 终端效率工具，改善命令行工作流。", "popularity": 955, "accent": "#2E8B57", "source": "Homebrew formula", "stage": "planned", "package": "zsh", "kind": "formula"},
+  {"id": "fish", "name": "Fish", "category": "终端工具", "description": "Fish 终端效率工具，改善命令行工作流。", "popularity": 954, "accent": "#2E8B57", "source": "Homebrew formula", "stage": "planned", "package": "fish", "kind": "formula"},
+  {"id": "starship", "name": "Starship", "category": "终端工具", "description": "Starship 终端效率工具，改善命令行工作流。", "popularity": 953, "accent": "#2E8B57", "source": "Homebrew formula", "stage": "planned", "package": "starship", "kind": "formula"},
+  {"id": "fzf", "name": "fzf", "category": "终端工具", "description": "fzf 终端效率工具，改善命令行工作流。", "popularity": 952, "accent": "#2E8B57", "source": "Homebrew formula", "stage": "planned", "package": "fzf", "kind": "formula"},
+  {"id": "ripgrep", "name": "ripgrep", "category": "终端工具", "description": "ripgrep 终端效率工具，改善命令行工作流。", "popularity": 951, "accent": "#2E8B57", "source": "Homebrew formula", "stage": "planned", "package": "ripgrep", "kind": "formula"},
+  {"id": "fd", "name": "fd", "category": "终端工具", "description": "fd 终端效率工具，改善命令行工作流。", "popularity": 950, "accent": "#2E8B57", "source": "Homebrew formula", "stage": "planned", "package": "fd", "kind": "formula"},
+  {"id": "bat", "name": "bat", "category": "终端工具", "description": "bat 终端效率工具，改善命令行工作流。", "popularity": 949, "accent": "#2E8B57", "source": "Homebrew formula", "stage": "planned", "package": "bat", "kind": "formula"},
+  {"id": "eza", "name": "eza", "category": "终端工具", "description": "eza 终端效率工具，改善命令行工作流。", "popularity": 948, "accent": "#2E8B57", "source": "Homebrew formula", "stage": "planned", "package": "eza", "kind": "formula"},
+  {"id": "zoxide", "name": "zoxide", "category": "终端工具", "description": "zoxide 终端效率工具，改善命令行工作流。", "popularity": 947, "accent": "#2E8B57", "source": "Homebrew formula", "stage": "planned", "package": "zoxide", "kind": "formula"},
+  {"id": "atuin", "name": "Atuin", "category": "终端工具", "description": "Atuin 终端效率工具，改善命令行工作流。", "popularity": 946, "accent": "#2E8B57", "source": "Homebrew formula", "stage": "planned", "package": "atuin", "kind": "formula"},
+  {"id": "zellij", "name": "Zellij", "category": "终端工具", "description": "Zellij 终端效率工具，改善命令行工作流。", "popularity": 945, "accent": "#2E8B57", "source": "Homebrew formula", "stage": "planned", "package": "zellij", "kind": "formula"},
+  {"id": "neovim", "name": "Neovim", "category": "终端工具", "description": "Neovim 终端效率工具，改善命令行工作流。", "popularity": 944, "accent": "#2E8B57", "source": "Homebrew formula", "stage": "planned", "package": "neovim", "kind": "formula"},
+  {"id": "helix", "name": "Helix", "category": "终端工具", "description": "Helix 终端效率工具，改善命令行工作流。", "popularity": 943, "accent": "#2E8B57", "source": "Homebrew formula", "stage": "planned", "package": "helix", "kind": "formula"},
+  {"id": "vim", "name": "Vim", "category": "终端工具", "description": "Vim 终端效率工具，改善命令行工作流。", "popularity": 942, "accent": "#2E8B57", "source": "Homebrew formula", "stage": "planned", "package": "vim", "kind": "formula"},
+  {"id": "sqlite", "name": "SQLite", "category": "数据库与服务", "description": "SQLite 数据库或缓存服务；安装软件包不会自动启动服务。", "popularity": 941, "accent": "#00758F", "source": "Homebrew formula", "stage": "planned", "package": "sqlite", "kind": "formula"},
+  {"id": "valkey", "name": "Valkey", "category": "数据库与服务", "description": "Valkey 数据库或缓存服务；安装软件包不会自动启动服务。", "popularity": 940, "accent": "#00758F", "source": "Homebrew formula", "stage": "planned", "package": "valkey", "kind": "formula"},
+  {"id": "memcached", "name": "Memcached", "category": "数据库与服务", "description": "Memcached 数据库或缓存服务；安装软件包不会自动启动服务。", "popularity": 939, "accent": "#00758F", "source": "Homebrew formula", "stage": "planned", "package": "memcached", "kind": "formula"},
+  {"id": "mariadb", "name": "MariaDB", "category": "数据库与服务", "description": "MariaDB 数据库或缓存服务；安装软件包不会自动启动服务。", "popularity": 938, "accent": "#00758F", "source": "Homebrew formula", "stage": "planned", "package": "mariadb", "kind": "formula"},
+  {"id": "duckdb", "name": "DuckDB", "category": "数据库与服务", "description": "DuckDB 数据库或缓存服务；安装软件包不会自动启动服务。", "popularity": 937, "accent": "#00758F", "source": "Homebrew formula", "stage": "planned", "package": "duckdb", "kind": "formula"},
+  {"id": "neo4j", "name": "Neo4j", "category": "数据库与服务", "description": "Neo4j 数据库或缓存服务；安装软件包不会自动启动服务。", "popularity": 936, "accent": "#00758F", "source": "Homebrew formula", "stage": "planned", "package": "neo4j", "kind": "formula"},
+  {"id": "wget", "name": "Wget", "category": "网络与云", "description": "Wget 网络、DNS 或云基础设施工具。", "popularity": 935, "accent": "#0F9D9A", "source": "Homebrew formula", "stage": "planned", "package": "wget", "kind": "formula"},
+  {"id": "curl", "name": "curl", "category": "网络与云", "description": "curl 网络、DNS 或云基础设施工具。", "popularity": 934, "accent": "#0F9D9A", "source": "Homebrew formula", "stage": "planned", "package": "curl", "kind": "formula"},
+  {"id": "httpie", "name": "HTTPie", "category": "网络与云", "description": "HTTPie 网络、DNS 或云基础设施工具。", "popularity": 933, "accent": "#0F9D9A", "source": "Homebrew formula", "stage": "planned", "package": "httpie", "kind": "formula"},
+  {"id": "jq", "name": "jq", "category": "网络与云", "description": "jq 网络、DNS 或云基础设施工具。", "popularity": 932, "accent": "#0F9D9A", "source": "Homebrew formula", "stage": "planned", "package": "jq", "kind": "formula"},
+  {"id": "yq", "name": "yq", "category": "网络与云", "description": "yq 网络、DNS 或云基础设施工具。", "popularity": 931, "accent": "#0F9D9A", "source": "Homebrew formula", "stage": "planned", "package": "yq", "kind": "formula"},
+  {"id": "nmap", "name": "Nmap", "category": "网络与云", "description": "Nmap 网络、DNS 或云基础设施工具。", "popularity": 930, "accent": "#0F9D9A", "source": "Homebrew formula", "stage": "planned", "package": "nmap", "kind": "formula"},
+  {"id": "mtr", "name": "mtr", "category": "网络与云", "description": "mtr 网络、DNS 或云基础设施工具。", "popularity": 929, "accent": "#0F9D9A", "source": "Homebrew formula", "stage": "planned", "package": "mtr", "kind": "formula"},
+  {"id": "iperf3", "name": "iperf3", "category": "网络与云", "description": "iperf3 网络、DNS 或云基础设施工具。", "popularity": 928, "accent": "#0F9D9A", "source": "Homebrew formula", "stage": "planned", "package": "iperf3", "kind": "formula"},
+  {"id": "socat", "name": "socat", "category": "网络与云", "description": "socat 网络、DNS 或云基础设施工具。", "popularity": 927, "accent": "#0F9D9A", "source": "Homebrew formula", "stage": "planned", "package": "socat", "kind": "formula"},
+  {"id": "netcat", "name": "netcat", "category": "网络与云", "description": "netcat 网络、DNS 或云基础设施工具。", "popularity": 926, "accent": "#0F9D9A", "source": "Homebrew formula", "stage": "planned", "package": "netcat", "kind": "formula"},
+  {"id": "bandwhich", "name": "bandwhich", "category": "网络与云", "description": "bandwhich 网络、DNS 或云基础设施工具。", "popularity": 925, "accent": "#0F9D9A", "source": "Homebrew formula", "stage": "planned", "package": "bandwhich", "kind": "formula"},
+  {"id": "cloudflared", "name": "Cloudflared", "category": "网络与云", "description": "Cloudflared 网络、DNS 或云基础设施工具。", "popularity": 924, "accent": "#0F9D9A", "source": "Homebrew formula", "stage": "planned", "package": "cloudflared", "kind": "formula"},
+  {"id": "caddy", "name": "Caddy", "category": "网络与云", "description": "Caddy 网络、DNS 或云基础设施工具。", "popularity": 923, "accent": "#0F9D9A", "source": "Homebrew formula", "stage": "planned", "package": "caddy", "kind": "formula"},
+  {"id": "ansible", "name": "Ansible", "category": "容器与云", "description": "Ansible 容器与云原生工具。", "popularity": 922, "accent": "#2496ED", "source": "Homebrew formula", "stage": "planned", "package": "ansible", "kind": "formula"},
+  {"id": "kubernetes-cli", "name": "kubectl", "category": "容器与云", "description": "kubectl 容器与云原生工具。", "popularity": 921, "accent": "#2496ED", "source": "Homebrew formula", "stage": "planned", "package": "kubernetes-cli", "kind": "formula"},
+  {"id": "helm", "name": "Helm", "category": "容器与云", "description": "Helm 容器与云原生工具。", "popularity": 920, "accent": "#2496ED", "source": "Homebrew formula", "stage": "planned", "package": "helm", "kind": "formula"},
+  {"id": "k9s", "name": "k9s", "category": "容器与云", "description": "k9s 容器与云原生工具。", "popularity": 919, "accent": "#2496ED", "source": "Homebrew formula", "stage": "planned", "package": "k9s", "kind": "formula"},
+  {"id": "podman", "name": "Podman", "category": "容器与云", "description": "Podman 容器与云原生工具。", "popularity": 918, "accent": "#2496ED", "source": "Homebrew formula", "stage": "planned", "package": "podman", "kind": "formula"},
+  {"id": "colima", "name": "Colima", "category": "容器与云", "description": "Colima 容器与云原生工具。", "popularity": 917, "accent": "#2496ED", "source": "Homebrew formula", "stage": "planned", "package": "colima", "kind": "formula"},
+  {"id": "kind", "name": "kind", "category": "容器与云", "description": "kind 容器与云原生工具。", "popularity": 916, "accent": "#2496ED", "source": "Homebrew formula", "stage": "planned", "package": "kind", "kind": "formula"},
+  {"id": "minikube", "name": "minikube", "category": "容器与云", "description": "minikube 容器与云原生工具。", "popularity": 915, "accent": "#2496ED", "source": "Homebrew formula", "stage": "planned", "package": "minikube", "kind": "formula"},
+  {"id": "skopeo", "name": "Skopeo", "category": "容器与云", "description": "Skopeo 容器与云原生工具。", "popularity": 914, "accent": "#2496ED", "source": "Homebrew formula", "stage": "planned", "package": "skopeo", "kind": "formula"},
+  {"id": "rectangle", "name": "Rectangle", "category": "效率工具", "description": "Rectangle macOS 效率应用。", "popularity": 913, "accent": "#B26A00", "source": "Homebrew cask", "stage": "planned", "package": "rectangle", "kind": "cask"},
+  {"id": "raycast", "name": "Raycast", "category": "效率工具", "description": "Raycast macOS 效率应用。", "popularity": 912, "accent": "#B26A00", "source": "Homebrew cask", "stage": "planned", "package": "raycast", "kind": "cask"},
+  {"id": "alfred", "name": "Alfred", "category": "效率工具", "description": "Alfred macOS 效率应用。", "popularity": 911, "accent": "#B26A00", "source": "Homebrew cask", "stage": "planned", "package": "alfred", "kind": "cask"},
+  {"id": "cleanshot", "name": "CleanShot X", "category": "效率工具", "description": "CleanShot X macOS 效率应用。", "popularity": 910, "accent": "#B26A00", "source": "Homebrew cask", "stage": "planned", "package": "cleanshot", "kind": "cask"},
+  {"id": "hiddenbar", "name": "Hidden Bar", "category": "效率工具", "description": "Hidden Bar macOS 效率应用。", "popularity": 909, "accent": "#B26A00", "source": "Homebrew cask", "stage": "planned", "package": "hiddenbar", "kind": "cask"},
+  {"id": "alt-tab", "name": "AltTab", "category": "效率工具", "description": "AltTab macOS 效率应用。", "popularity": 908, "accent": "#B26A00", "source": "Homebrew cask", "stage": "planned", "package": "alt-tab", "kind": "cask"},
+  {"id": "stats", "name": "Stats", "category": "效率工具", "description": "Stats macOS 效率应用。", "popularity": 907, "accent": "#B26A00", "source": "Homebrew cask", "stage": "planned", "package": "stats", "kind": "cask"},
+  {"id": "monitorcontrol", "name": "MonitorControl", "category": "效率工具", "description": "MonitorControl macOS 效率应用。", "popularity": 906, "accent": "#B26A00", "source": "Homebrew cask", "stage": "planned", "package": "monitorcontrol", "kind": "cask"},
+  {"id": "appcleaner", "name": "AppCleaner", "category": "效率工具", "description": "AppCleaner macOS 效率应用。", "popularity": 905, "accent": "#B26A00", "source": "Homebrew cask", "stage": "planned", "package": "appcleaner", "kind": "cask"},
+  {"id": "blender", "name": "Blender", "category": "设计媒体", "description": "Blender 设计与媒体工具。", "popularity": 904, "accent": "#9B51E0", "source": "Homebrew cask", "stage": "planned", "package": "blender", "kind": "cask"},
+  {"id": "gimp", "name": "GIMP", "category": "设计媒体", "description": "GIMP 设计与媒体工具。", "popularity": 903, "accent": "#9B51E0", "source": "Homebrew cask", "stage": "planned", "package": "gimp", "kind": "cask"},
+  {"id": "inkscape", "name": "Inkscape", "category": "设计媒体", "description": "Inkscape 设计与媒体工具。", "popularity": 902, "accent": "#9B51E0", "source": "Homebrew cask", "stage": "planned", "package": "inkscape", "kind": "cask"},
+  {"id": "krita", "name": "Krita", "category": "设计媒体", "description": "Krita 设计与媒体工具。", "popularity": 901, "accent": "#9B51E0", "source": "Homebrew cask", "stage": "planned", "package": "krita", "kind": "cask"},
 ];
