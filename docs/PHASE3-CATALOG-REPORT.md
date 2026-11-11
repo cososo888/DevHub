@@ -92,6 +92,7 @@ brew install --cask <package>
 
 - 真实 release app 从 DMG 启动成功。
 - 首页显示 100 款精选软件、8 个分类。
+- 全局搜索：输入查询后忽略顶部分类；清空后恢复分类。
 - 搜索 `postman`：精选 0 款、Homebrew 全库 5 款；结果包含 Postman、Postman CLI 等。
 - 点击 Postman 打开统一详情卡片。
 - 点击安装显示确认命令：
@@ -123,7 +124,7 @@ brew install --cask <package>
 DMG SHA-256：
 
 ```text
-fa8fb770cf5a597fb870b81e1d07b446767bcdbbf1c082900a01eb67e6b52d85
+aa7990bc6828fae52c0d40de7eb73f1059bd989b7dc995a5847eb5d5bd511e53
 ```
 
 ## 6. 安装包
@@ -148,6 +149,7 @@ dist/SHA256SUMS.txt
 - `src-tauri/src/lib.rs`：Tauri 命令与验证
 - `scripts/*.test.mjs`：100 目录与 UI 测试
 - `docs/PHASE3-CATALOG-REPORT.md`、截图、`dist/` DMG
+- `docs/windows/`：Windows 交接资料；`docs/WINDOWS-PORT-REPORT.md`
 
 ## 8. 尚未解决
 

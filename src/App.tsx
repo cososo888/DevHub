@@ -9,6 +9,7 @@ import { useDetection } from "./hooks/useDetection";
 import { useInstallTask } from "./hooks/useInstallTask";
 import { useTheme } from "./hooks/useTheme";
 import { desktop } from "./lib/ipc";
+import { filterCurated } from "./lib/catalogFilter";
 import type { AppStatus, HomebrewResult, InstalledPackages, PackageKind, PackageVersion, SoftwareInstance } from "./lib/ipc";
 
 function formatUpdated(value: number | null | undefined) {
@@ -124,10 +125,9 @@ export default function App() {
 
   const isInstalled = (item: Software) => instancesBySoftware.has(item.id) || brewMap.has(packageKey(item.kind, item.package));
 
+  const globalSearch = query.trim().length >= 2;
   const curated = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return SOFTWARE
-      .filter(item => (category === "全部" || item.category === category) && (!needle || item.name.toLowerCase().includes(needle) || item.package.toLowerCase().includes(needle)))
+    return filterCurated(SOFTWARE, query, category)
       .sort((a, b) => Number(isInstalled(b)) - Number(isInstalled(a)) || b.popularity - a.popularity);
   }, [category, query, instancesBySoftware, brewMap]);
 
@@ -146,7 +146,6 @@ export default function App() {
 
   const items = useMemo(() => [...curated, ...remoteItems], [curated, remoteItems]);
   const installedIds = useMemo(() => new Set(items.filter(isInstalled).map(item => item.id)), [items, instancesBySoftware, brewMap]);
-  const searchText = query.trim();
   const searchCount = remoteItems.length;
   const selectedInstances = selected ? instancesBySoftware.get(selected.item.id) ?? [] : [];
   const selectedBrew = selected ? brewMap.get(packageKey(selected.item.kind, selected.item.package)) ?? null : null;
@@ -203,13 +202,13 @@ export default function App() {
             <button type="button" onClick={() => void refresh()}>重新检查</button>
           </div>
         )}
-        {searchText.length >= 2 && (
+        {globalSearch && (
           <div className="search-status" role="status">
             {searching
               ? "正在搜索 Homebrew 全库…"
               : searchError
                 ? <><span>Homebrew 搜索失败：{searchError}</span><button type="button" onClick={() => setSearchRetry(value => value + 1)}>重试</button></>
-                : <span>精选 {curated.length} 款 · Homebrew 全库 {searchCount} 款</span>}
+                : <span>全局搜索（忽略分类） · 精选 {curated.length} 款 · Homebrew 全库 {searchCount} 款</span>}
           </div>
         )}
         {items.length > 0

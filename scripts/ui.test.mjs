@@ -53,6 +53,7 @@ const { OrbGrid } = await import("../src/components/OrbGrid.tsx");
 const { Toolbar } = await import("../src/components/Toolbar.tsx");
 const { DetailOverlay, anchoredCard } = await import("../src/components/DetailOverlay.tsx");
 const { SOFTWARE, CATEGORIES } = await import("../src/catalog.ts");
+const { filterCurated } = await import("../src/lib/catalogFilter.ts");
 
 afterEach(() => {
   cleanup();
@@ -73,6 +74,14 @@ test("catalog exposes 100 unique, real Homebrew packages across eight categories
     assert.ok(item.package && item.kind === "formula" || item.kind === "cask", item.id);
     assert.ok(item.name && item.description);
   }
+});
+
+test("search is global and ignores the selected category", () => {
+  const underDev = filterCurated(SOFTWARE, "node", "开发工具");
+  assert.ok(underDev.some(item => item.id === "node"));
+  const noQuery = filterCurated(SOFTWARE, "", "开发工具");
+  assert.ok(noQuery.length > 0);
+  assert.ok(noQuery.every(item => item.category === "开发工具"));
 });
 
 test("circle grid renders every software once and reports the orb origin", async () => {
