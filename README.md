@@ -10,6 +10,8 @@
 
 <p align="center">
   <a href="https://github.com/cososo888/DevHub"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-cososo888%2FDevHub-181717?logo=github&logoColor=white" /></a>
+  <a href="https://github.com/cososo888/DevHub/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/cososo888/DevHub/actions/workflows/ci.yml/badge.svg" /></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-2EA44F" /></a>
   <img alt="macOS" src="https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-000000?logo=apple&logoColor=white" />
   <img alt="Windows" src="https://img.shields.io/badge/Windows-planned-8B95A7" />
   <img alt="Tauri" src="https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white" />
@@ -17,6 +19,8 @@
   <img alt="Rust" src="https://img.shields.io/badge/Rust-stable-CE422B?logo=rust&logoColor=white" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white" />
 </p>
+
+<p align="center"><a href="README_EN.md">English</a> · 中文</p>
 
 ---
 
@@ -307,6 +311,11 @@ Windows 版只做：
 
 ## 文档
 
+- [English README](README_EN.md)
+- [开发指南](docs/development.md)
+- [贡献指南](CONTRIBUTING.md)
+- [安全策略](SECURITY.md)
+- [变更日志](CHANGELOG.md)
 - [Phase 3 目录与搜索报告](docs/PHASE3-CATALOG-REPORT.md)
 - [Go 安装验证误报修复](docs/GO-VERIFICATION-FIX.md)
 - [Windows 版差异与底层问题](docs/WINDOWS-PORT-REPORT.md)
@@ -318,7 +327,7 @@ Windows 版只做：
 - 版本：`0.1.0`
 - 当前平台：macOS Apple Silicon
 - Windows：规划中，未实现
-- 许可证：暂未指定
+- 许可证：[MIT](LICENSE)
 
 ---
 

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/cososo888/DevHub/tree/main/docs
+    about: Read the phase reports and Windows handoff before opening an issue.
+  - name: Security report
+    url: https://github.com/cososo888/DevHub/security/advisories/new
+    about: Please report vulnerabilities privately through GitHub Security Advisories.
