@@ -208,7 +208,13 @@ fn start_package_install(app: AppHandle, state: State<AppState>, package: String
         };
         emit_progress(&app, job_id, &package, &package, "install", "verifying", "命令结束，正在确认 Homebrew 安装状态…");
         let snapshot = detect_now(&app, &state);
-        let package_present = homebrew::package_installed(&package, &kind).unwrap_or(false);
+        let package_present = match homebrew::package_installed_verified(&package, &kind) {
+            Ok(value) => value,
+            Err(error) => {
+                emit_finished(&app, job_id, &package, &package, "install", false, &format!("安装命令结束，但无法确认 Homebrew 状态：{error}"), &output, None);
+                return;
+            }
+        };
         if !package_present {
             emit_finished(&app, job_id, &package, &package, "install", false, "安装命令结束，但 Homebrew 未确认该软件包已安装", &output, None);
             return;

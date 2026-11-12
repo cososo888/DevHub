@@ -124,7 +124,7 @@ brew install --cask <package>
 DMG SHA-256：
 
 ```text
-6628c99a174a7af124079b4bda2a7fcd995c5c43baadf525ce475f5b2a1e9f8f
+888050f32880b04ecd2fd4026667948c0acdbb5dc594908c70606b62ec092347
 ```
 
 ## 6. 安装包
@@ -157,7 +157,21 @@ dist/SHA256SUMS.txt
 - 已安装蓝色圆环加强：更亮边框、5px 外环和轻微蓝色光晕；深色模式单独增强。
 - 隐藏页面右缘滚动条：`html/body/#root/.app/.main` 使用隐藏滚动条规则，滚轮、触控板、键盘滚动仍可用。
 
-## 9. 尚未解决
+## 9. Go 安装后验证修复
+
+Go 安装后曾误报“Homebrew 未确认”。根因是 `brew list --formula go` 会输出整个 Go keg 的文件列表，超过 256 KiB 输出上限，进程被中止后代码用 `unwrap_or(false)` 把查询失败当成未安装。
+
+修复：
+
+- 改用 `brew list --formula --versions go` / `brew list --cask --versions <package>`，只读取版本行；
+- 对 formula 增加 JSON 回退，按 `name/full_name` 精确匹配，不取第一个 formula；
+- 验证重试 4 次（间隔 250 ms），避免安装状态写入竞态；
+- 查询失败显示“无法确认 Homebrew 状态”，不再伪装成“未安装”；
+- `brew list --versions` 为非零时区分 not installed 与真实查询失败。
+
+回归测试：多 formula JSON、version-list 参数、真实本机 Go 1.27.3 验证。
+
+## 10. 尚未解决
 
 1. 未执行真实 Homebrew 安装/卸载（需要用户确认）。
 2. 搜索只展示每类最多 12、总计 24 条，不提供全库分页。

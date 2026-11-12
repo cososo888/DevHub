@@ -92,11 +92,98 @@ pub fn installed_packages() -> Result<InstalledPackages, String> {
     })
 }
 
+fn installed_versions_args(package: &str, kind: &str) -> Vec<String> {
+    if kind == "cask" {
+        vec!["list".into(), "--cask".into(), "--versions".into(), package.into()]
+    } else {
+        vec!["list".into(), "--formula".into(), "--versions".into(), package.into()]
+    }
+}
+
+fn is_not_installed_text(text: &str) -> bool {
+    let lower = text.to_lowercase();
+    lower.contains("not installed") || lower.contains("no such keg") || lower.contains("no installed keg")
+}
+
+/// Parse a multi-formula JSON response and select the exact requested formula.
+/// Never takes the first formula: `brew info --installed` can return several.
+fn formula_installed_from_json(text: &str, package: &str) -> Result<bool, String> {
+    let value: serde_json::Value = serde_json::from_str(text).map_err(|error| format!("Homebrew JSON 无法解析：{error}"))?;
+    let formulae = value.get("formulae").and_then(|value| value.as_array())
+        .ok_or_else(|| "Homebrew 没有返回 formulae 数组".to_string())?;
+    for formula in formulae {
+        let name = formula.get("name").and_then(|value| value.as_str());
+        let full_name = formula.get("full_name").and_then(|value| value.as_str());
+        if name != Some(package) && full_name != Some(package) { continue; }
+        let installed = formula.get("installed").and_then(|value| value.as_array())
+            .map(|values| !values.is_empty())
+            .or_else(|| formula.get("linked_keg").and_then(|value| value.as_str()).map(|value| !value.is_empty()))
+            .unwrap_or(false);
+        return Ok(installed);
+    }
+    Err(format!("Homebrew JSON 中没有精确匹配的 formula：{package}"))
+}
+
+fn fallback_formula_json(brew: &Brew, package: &str) -> Result<bool, String> {
+    let output = process::run_with_env(
+        &brew.path,
+        &["info", "--json=v2", "--formula", package],
+        INFO_TIMEOUT,
+        OUTPUT_LIMIT,
+        ENV,
+    )?;
+    if output.status != 0 {
+        return Err(format!("Homebrew 状态查询失败：{}", output.stderr.trim()));
+    }
+    formula_installed_from_json(&output.stdout, package)
+}
+
+/// Checks the exact installed package, not merely a process exit code.
+/// The fallback is deliberately JSON-based and matches the exact formula name.
 pub fn package_installed(package: &str, kind: &str) -> Result<bool, String> {
     if !valid_kind(kind) || !valid_package(package) { return Err("无效的 Homebrew 包标识".into()); }
     let brew = probe()?;
-    let output = process::run_with_env(&brew.path, &["list", list_flag(kind), package], LIST_TIMEOUT, 256 * 1024, ENV)?;
-    Ok(output.status == 0)
+    let args_owned = installed_versions_args(package, kind);
+    let args = args_owned.iter().map(String::as_str).collect::<Vec<_>>();
+    match process::run_with_env(&brew.path, &args, LIST_TIMEOUT, 256 * 1024, ENV) {
+        Ok(output) if output.status == 0 => {
+            let found = output.stdout.lines().any(|line| line.split_whitespace().next() == Some(package));
+            if found { return Ok(true); }
+            // A zero exit with no exact matching package: confirm via JSON for formula.
+            if kind == "formula" { return fallback_formula_json(&brew, package); }
+            Ok(false)
+        }
+        Ok(output) if is_not_installed_text(&format!("{}\n{}", output.stdout, output.stderr)) => Ok(false),
+        Ok(_) => {
+            if kind == "formula" { fallback_formula_json(&brew, package) }
+            else { Err("Homebrew 状态查询返回非零状态".into()) }
+        }
+        Err(primary_error) => {
+            if kind == "formula" {
+                fallback_formula_json(&brew, package).map_err(|fallback| format!("{primary_error}; {fallback}"))
+            } else {
+                Err(primary_error)
+            }
+        }
+    }
+}
+
+/// Verification after an installer can race Homebrew's state write.
+/// Retry briefly, but never turn a query failure into "not installed".
+pub fn package_installed_verified(package: &str, kind: &str) -> Result<bool, String> {
+    let mut last_error = None;
+    for attempt in 0..4 {
+        match package_installed(package, kind) {
+            Ok(true) => return Ok(true),
+            Ok(false) => last_error = None,
+            Err(error) => last_error = Some(error),
+        }
+        if attempt < 3 { std::thread::sleep(Duration::from_millis(250)); }
+    }
+    match last_error {
+        Some(error) => Err(error),
+        None => Ok(false),
+    }
 }
 
 pub fn package_exists(package: &str, kind: &str) -> Result<bool, String> {
@@ -208,6 +295,35 @@ mod tests {
         assert!(!valid_package("node; rm -rf ~"));
         assert!(!valid_package(""));
         assert!(!valid_kind("zip"));
+    }
+
+    #[test]
+    fn installed_versions_query_uses_versions_not_unbounded_file_list() {
+        let args = installed_versions_args("go", "formula");
+        assert_eq!(args, vec!["list", "--formula", "--versions", "go"]);
+        let cask = installed_versions_args("visual-studio-code", "cask");
+        assert_eq!(cask, vec!["list", "--cask", "--versions", "visual-studio-code"]);
+    }
+
+    #[test]
+    fn multi_formula_json_selects_exact_package_not_first() {
+        let json = r#"{
+          "formulae": [
+            {"name":"fnm","full_name":"fnm","installed":[{"version":"1.39.0"}]},
+            {"name":"go","full_name":"go","installed":[{"version":"1.27.3"}]},
+            {"name":"ncmdump","full_name":"ncmdump","installed":[]}
+          ]
+        }"#;
+        assert_eq!(formula_installed_from_json(json, "go").expect("go exact"), true);
+        assert_eq!(formula_installed_from_json(json, "ncmdump").expect("ncmdump exact"), false);
+        assert!(formula_installed_from_json(json, "does-not-exist").is_err());
+    }
+
+    #[test]
+    #[ignore]
+    fn live_installed_go_verification_is_true() {
+        assert_eq!(package_installed("go", "formula").expect("go state"), true);
+        assert_eq!(package_installed_verified("go", "formula").expect("go verified"), true);
     }
 
     #[test]
