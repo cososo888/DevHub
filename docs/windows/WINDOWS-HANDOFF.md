@@ -1,5 +1,7 @@
 # DevHub V2 · Windows x64 交接说明
 
+> 第一次接手请先读 `docs/WINDOWS-TEAMMATE-GUIDE.md`：它从 GitHub 邀请、Windows 环境安装、克隆、分支、构建到测试逐步说明。
+
 日期：2026-11-11
 目标：Windows 10/11 x64，winget，NSIS。
 

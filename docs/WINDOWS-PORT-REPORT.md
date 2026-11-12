@@ -58,6 +58,8 @@
 
 ## 5. Windows 队友需要完成
 
+完整入门文档：`docs/WINDOWS-TEAMMATE-GUIDE.md`。
+
 1. 在 Windows x64 安装 Node、Rust MSVC、VS Build Tools、WebView2。
 2. 运行：
    ```powershell
