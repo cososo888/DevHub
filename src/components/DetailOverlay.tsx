@@ -5,6 +5,7 @@ import type { Software } from "../catalog";
 import { useReducedMotion } from "../hooks/useReducedMotion";
 import type { InstallFinished, InstallProgress, SoftwareInstance } from "../lib/ipc";
 import { failureFeedback } from "../lib/taskFeedback";
+import { softwareDescription } from "../lib/softwareDescriptions";
 import { SoftwareLogo } from "./SoftwareLogo";
 
 export interface OrbOrigin {
@@ -69,6 +70,7 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, hom
   const nonBrewInstalled = instances.length > 0 && !brewInstalled;
   const busy = Boolean(task);
   const packageName = item.package;
+  const description = softwareDescription(item);
   const installCommand = item.kind === "cask" ? `brew install --cask ${packageName}` : `brew install ${packageName}`;
   const uninstallCommand = item.kind === "cask" ? `brew uninstall --cask ${packageName}` : `brew uninstall ${packageName}`;
   const showBrewLine = brewInstalled && !instances.some(instance => instance.path.includes("/Cellar/") || instance.path.includes("/Caskroom/") || instance.path.includes("/opt/homebrew/"));
@@ -78,18 +80,15 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, hom
     <div className="detail-inner" tabIndex={interactive ? 0 : undefined} role={interactive ? "region" : undefined} aria-label={interactive ? `${item.name} 详情内容` : undefined}>
       <header className="detail-head">
         <h2>{item.name}</h2>
-        <p>{item.description}</p>
+        {!expanded && <p>{item.description}</p>}
         <button type="button" className="description-toggle" aria-label="详细介绍" aria-expanded={expanded} onMouseEnter={() => onExpanded(true)} onMouseLeave={() => { if (!pinned) onExpanded(false); }} onFocus={() => onExpanded(true)} onClick={() => { onPinned(!pinned); onExpanded(!pinned); }}>
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.5"/><path d="M12 6.5v7M12 16.5v1" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
         </button>
       </header>
 
       {expanded && <section className="software-description" aria-label="软件详细介绍">
-        <h3>关于 {item.name}</h3>
-        <p>{item.description}</p>
-        <dl><dt>软件包</dt><dd>{item.package}</dd><dt>发行渠道</dt><dd>{item.kind === "cask" ? "Homebrew Cask · 桌面应用" : "Homebrew Formula · 命令行工具"}</dd><dt>分类</dt><dd>{item.category}</dd></dl>
-        <p>由 Homebrew 提供当前版本。DevHub 会在操作前请求确认，安装结束后重新核对包状态。</p>
-        <p>检测到的已有安装可能来自系统、官网或其他工具；只有 Homebrew 管理的软件包提供卸载操作。</p>
+        <p>{description?.purpose ?? item.description}</p>
+        {description && <ul>{description.uses.map(use => <li key={use}>{use}</li>)}</ul>}
       </section>}
       <div className="env-summary">
         <span className={`env-state${installed ? " installed" : ""}`}>{installed ? "已安装" : "未安装"}</span>

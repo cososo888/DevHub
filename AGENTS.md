@@ -1,0 +1,11 @@
+# DevHub V2 working agreement
+
+- Work in this V2 repository. Do not modify the legacy DevHub project.
+- Current product scope: macOS only. Windows work is paused.
+- Efficiency is a product requirement: concise, useful information and fewer unnecessary steps. Avoid filler, repeated introductions, decorative status text and unsolicited automatic reordering.
+- Software details describe the software's purpose and concrete use cases. Keep package-manager policy, permission/impact confirmation and troubleshooting beside the relevant action, not inside the software introduction.
+- Keep technical logs available on demand; do not hide uncertainty or claim success from a process exit alone.
+- Preserve colorful brand artwork in light and dark modes. Prefer bundled local assets; label generic fallbacks honestly rather than implying an official logo.
+- Reuse the existing orb grid and detail components. Keep theme, keyboard access and scrolling usable.
+- Check the worktree before editing and preserve user changes. Validate UI changes with type checks, relevant UI tests and a build. State honestly when native visual verification was unavailable.
+- Do not run real host software installs/uninstalls, edit PATH/Shell/system configuration or delete user data without separate explicit authorization. No remote push without user instruction.

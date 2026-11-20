@@ -41,6 +41,6 @@ export function SoftwareLogo({ id }: LogoProps) {
       return <svg viewBox="0 0 64 64" className="software-logo" aria-hidden="true"><rect x="8" y="8" width="48" height="48" rx="12" fill="#FE315D" /><rect x="14" y="44" width="26" height="5" rx="2" fill="#fff" opacity=".85" />{text("IJ", "#fff", 18)}</svg>;
     default:
       if (SOFTWARE_ICONS.has(id)) return <img className="software-logo brand-logo" src={`/software-icons/${id}.svg`} alt="" draggable={false} />;
-      return <svg viewBox="0 0 64 64" className="software-logo" aria-hidden="true" data-placeholder="true"><rect x="10" y="12" width="44" height="40" rx="12" fill="none" stroke="currentColor" strokeWidth="3"/><path d="m21 25 8 7-8 7m14 0h9" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+      return <svg viewBox="0 0 64 64" className="software-logo" aria-hidden="true" data-placeholder="true"><rect x="10" y="12" width="44" height="40" rx="12" fill="#EDF4FF" stroke="#4E7DDE" strokeWidth="3"/><path d="m21 25 8 7-8 7m14 0h9" fill="none" stroke="#7C59C5" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>;
   }
 }

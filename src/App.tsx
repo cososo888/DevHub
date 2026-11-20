@@ -10,7 +10,7 @@ import { useInstallTask } from "./hooks/useInstallTask";
 import { useTheme } from "./hooks/useTheme";
 import { desktop } from "./lib/ipc";
 import { filterCurated } from "./lib/catalogFilter";
-import type { AppStatus, HomebrewResult, InstalledPackages, PackageKind, PackageVersion, SoftwareInstance } from "./lib/ipc";
+import type { HomebrewResult, InstalledPackages, PackageKind, PackageVersion, SoftwareInstance } from "./lib/ipc";
 
 function formatUpdated(value: number | null | undefined) {
   if (!value) return "尚未检测";
@@ -45,7 +45,6 @@ export default function App() {
   const [category, setCategory] = useState("全部");
   const [searchOpen, setSearchOpen] = useState(false);
   const [selected, setSelected] = useState<{ item: Software; origin: OrbOrigin } | null>(null);
-  const [status, setStatus] = useState<AppStatus | null>(null);
   const [packages, setPackages] = useState<InstalledPackages>({ formulae: [], casks: [] });
   const [remote, setRemote] = useState<HomebrewResult[]>([]);
   const [remoteQuery, setRemoteQuery] = useState("");
@@ -53,14 +52,6 @@ export default function App() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searchRetry, setSearchRetry] = useState(0);
   const searchCache = useRef(new Map<string, HomebrewResult[]>());
-
-  useEffect(() => {
-    let live = true;
-    desktop<AppStatus>("get_app_status")
-      .then(value => { if (live) setStatus(value); })
-      .catch(() => { if (live) setStatus(null); });
-    return () => { live = false; };
-  }, []);
 
   useEffect(() => {
     let live = true;
@@ -195,7 +186,6 @@ export default function App() {
                 <path d="M20 5v6h-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
-            <span className="phase-pill">{status ? `Phase ${status.phase} · 安装` : "Phase 3 · 安装"}</span>
           </div>
         </div>
         {snapshot && !snapshot.homebrew.available && (
@@ -217,9 +207,6 @@ export default function App() {
         {items.length > 0
           ? <OrbGrid items={items} installed={installedIds} installing={busyIds} sourceId={selected?.item.id ?? null} onOpen={(item, origin) => setSelected({ item, origin })} />
           : <div className="empty">{searching ? "正在搜索 Homebrew…" : "没有匹配的软件，换个关键词或分类试试。"}</div>}
-        <p className="footnote">
-          {status ? `${status.product} · Phase ${status.phase}` : "DevHub V2 · Phase 3"} · 检测只读 · 安装需确认
-        </p>
       </main>
       {selected && (
         <DetailOverlay

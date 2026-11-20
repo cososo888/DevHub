@@ -1,0 +1,429 @@
+{
+  "curl": {
+    "brand": "curl",
+    "upstreamColor": "#073551",
+    "displayColor": "#C16B28",
+    "source": "https://curl.haxx.se/logo/",
+    "neutralPlate": true
+  },
+  "libtool": {
+    "brand": "GNU",
+    "upstreamColor": "#A42E2B",
+    "displayColor": "#A42E2B",
+    "source": "https://gnu.org",
+    "neutralPlate": false
+  },
+  "raycast": {
+    "brand": "Raycast",
+    "upstreamColor": "#FF6363",
+    "displayColor": "#FF6363",
+    "source": "https://www.raycast.com/press",
+    "neutralPlate": false
+  },
+  "jdk": {
+    "brand": "OpenJDK",
+    "upstreamColor": "#000000",
+    "displayColor": "#177EAB",
+    "source": "https://hg.openjdk.java.net/duke/duke/file/ca00f100dafc/vector/Agent.svg",
+    "neutralPlate": true
+  },
+  "httpie": {
+    "brand": "HTTPie",
+    "upstreamColor": "#73DC8C",
+    "displayColor": "#73DC8C",
+    "source": "https://github.com/httpie/httpie/blob/d262181bede5241a6b692c3245a77e2eb02bc262/docs/httpie-logo.svg",
+    "neutralPlate": false
+  },
+  "mtr": {
+    "brand": "MTR",
+    "upstreamColor": "#AC2E45",
+    "displayColor": "#AC2E45",
+    "source": "https://commons.wikimedia.org/wiki/File:MTR_(logo_with_text).svg",
+    "neutralPlate": false
+  },
+  "rust": {
+    "brand": "Rust",
+    "upstreamColor": "#000000",
+    "displayColor": "#C16B28",
+    "source": "https://www.rust-lang.org",
+    "neutralPlate": true
+  },
+  "nim": {
+    "brand": "Nim",
+    "upstreamColor": "#FFE953",
+    "displayColor": "#FFE953",
+    "source": "https://nim-lang.org",
+    "neutralPlate": false
+  },
+  "autoconf": {
+    "brand": "GNU",
+    "upstreamColor": "#A42E2B",
+    "displayColor": "#A42E2B",
+    "source": "https://gnu.org",
+    "neutralPlate": false
+  },
+  "helm": {
+    "brand": "Helm",
+    "upstreamColor": "#0F1689",
+    "displayColor": "#0F1689",
+    "source": "https://helm.sh",
+    "neutralPlate": false
+  },
+  "alfred": {
+    "brand": "Alfred",
+    "upstreamColor": "#5C1F87",
+    "displayColor": "#5C1F87",
+    "source": "https://www.alfredapp.com",
+    "neutralPlate": false
+  },
+  "zig": {
+    "brand": "Zig",
+    "upstreamColor": "#F7A41D",
+    "displayColor": "#F7A41D",
+    "source": "https://github.com/ziglang/logo/blob/6446ba8e37a0651da720d8869e1ce9264fa0c0b9/zig-mark.svg",
+    "neutralPlate": false
+  },
+  "scala": {
+    "brand": "Scala",
+    "upstreamColor": "#DC322F",
+    "displayColor": "#DC322F",
+    "source": "https://www.scala-lang.org",
+    "neutralPlate": false
+  },
+  "automake": {
+    "brand": "GNU",
+    "upstreamColor": "#A42E2B",
+    "displayColor": "#A42E2B",
+    "source": "https://gnu.org",
+    "neutralPlate": false
+  },
+  "zsh": {
+    "brand": "Zsh",
+    "upstreamColor": "#F15A24",
+    "displayColor": "#F15A24",
+    "source": "https://github.com/Zsh-art/logo/blob/17617f2f6c70c65943a48745c91d997e7561f19d/svg/white_logomark.svg",
+    "neutralPlate": false
+  },
+  "ruby": {
+    "brand": "Ruby",
+    "upstreamColor": "#CC342D",
+    "displayColor": "#CC342D",
+    "source": "https://www.ruby-lang.org/en/about/logo/",
+    "neutralPlate": false
+  },
+  "python": {
+    "brand": "Python",
+    "upstreamColor": "#3776AB",
+    "displayColor": "#3776AB",
+    "source": "https://www.python.org/community/logos/",
+    "neutralPlate": false
+  },
+  "make": {
+    "brand": "GNU",
+    "upstreamColor": "#A42E2B",
+    "displayColor": "#A42E2B",
+    "source": "https://gnu.org",
+    "neutralPlate": false
+  },
+  "docker": {
+    "brand": "Docker",
+    "upstreamColor": "#2496ED",
+    "displayColor": "#2496ED",
+    "source": "https://www.docker.com/company/newsroom/media-resources",
+    "neutralPlate": false
+  },
+  "git": {
+    "brand": "Git",
+    "upstreamColor": "#F03C2E",
+    "displayColor": "#F03C2E",
+    "source": "https://git-scm.com/community/logos",
+    "neutralPlate": false
+  },
+  "erlang": {
+    "brand": "Erlang",
+    "upstreamColor": "#A90533",
+    "displayColor": "#A90533",
+    "source": "https://github.com/erlang/erlide_eclipse/blob/99d1d61fde8e32ef1630ca0e1b05a6822b3d6489/meta/media/erlang-logo.svg",
+    "neutralPlate": false
+  },
+  "vim": {
+    "brand": "Vim",
+    "upstreamColor": "#019733",
+    "displayColor": "#019733",
+    "source": "https://commons.wikimedia.org/wiki/File:Vimlogo.svg",
+    "neutralPlate": false
+  },
+  "bun": {
+    "brand": "Bun",
+    "upstreamColor": "#000000",
+    "displayColor": "#177EAB",
+    "source": "https://bun.sh/press-kit",
+    "neutralPlate": true
+  },
+  "inkscape": {
+    "brand": "Inkscape",
+    "upstreamColor": "#000000",
+    "displayColor": "#C16B28",
+    "source": "https://inkscape.org/gallery/=inkscape-branding/inkscape-brand-assets/",
+    "neutralPlate": true
+  },
+  "lua": {
+    "brand": "Lua",
+    "upstreamColor": "#000080",
+    "displayColor": "#000080",
+    "source": "https://www.lua.org/images/",
+    "neutralPlate": false
+  },
+  "helix": {
+    "brand": "Helix",
+    "upstreamColor": "#281733",
+    "displayColor": "#C16B28",
+    "source": "https://helix-editor.com",
+    "neutralPlate": true
+  },
+  "kotlin": {
+    "brand": "Kotlin",
+    "upstreamColor": "#7F52FF",
+    "displayColor": "#7F52FF",
+    "source": "https://www.jetbrains.com/company/brand/logos/",
+    "neutralPlate": false
+  },
+  "git-lfs": {
+    "brand": "Git LFS",
+    "upstreamColor": "#F64935",
+    "displayColor": "#F64935",
+    "source": "https://git-lfs.github.com",
+    "neutralPlate": false
+  },
+  "krita": {
+    "brand": "Krita",
+    "upstreamColor": "#3BABFF",
+    "displayColor": "#3BABFF",
+    "source": "https://krita.org/en/about/press/",
+    "neutralPlate": false
+  },
+  "elixir": {
+    "brand": "Elixir",
+    "upstreamColor": "#8847B9",
+    "displayColor": "#8847B9",
+    "source": "https://github.com/elixir-lang/elixir-lang.github.com/tree/031746384ee23b9be19298c92a9699c56cc05845/images/logo",
+    "neutralPlate": false
+  },
+  "gimp": {
+    "brand": "GIMP",
+    "upstreamColor": "#8C8073",
+    "displayColor": "#177EAB",
+    "source": "https://gitlab.gnome.org/GNOME/gimp-data/-/blob/e62f1905dcef7ec831ea6c052bb035eb37eaa69e/images/logo/gimp-logo-unicolor.svg",
+    "neutralPlate": true
+  },
+  "caddy": {
+    "brand": "Caddy",
+    "upstreamColor": "#1F88C0",
+    "displayColor": "#1F88C0",
+    "source": "https://caddyserver.com",
+    "neutralPlate": false
+  },
+  "tmux": {
+    "brand": "tmux",
+    "upstreamColor": "#1BB91F",
+    "displayColor": "#1BB91F",
+    "source": "https://github.com/tmux/tmux/blob/e26356607e38cbb4676a7c91815ae2d5734443c3/logo/tmux-logo-1-color.svg",
+    "neutralPlate": false
+  },
+  "mariadb": {
+    "brand": "MariaDB",
+    "upstreamColor": "#003545",
+    "displayColor": "#6D5BD0",
+    "source": "https://mariadb.com/about-us/logos/",
+    "neutralPlate": true
+  },
+  "sqlite": {
+    "brand": "SQLite",
+    "upstreamColor": "#003B57",
+    "displayColor": "#003B57",
+    "source": "https://github.com/sqlite/sqlite/blob/43e862723ec680542ca6f608f9963c0993dd7324/art/sqlite370.eps",
+    "neutralPlate": false
+  },
+  "julia": {
+    "brand": "Julia",
+    "upstreamColor": "#9558B2",
+    "displayColor": "#9558B2",
+    "source": "https://github.com/JuliaLang/julia-logo-graphics/blob/b5551ca7946b4a25746c045c15fbb8806610f8d0/images/julia-dots.svg",
+    "neutralPlate": false
+  },
+  "blender": {
+    "brand": "Blender",
+    "upstreamColor": "#E87D0D",
+    "displayColor": "#E87D0D",
+    "source": "https://www.blender.org/about/logo",
+    "neutralPlate": false
+  },
+  "php": {
+    "brand": "PHP",
+    "upstreamColor": "#777BB4",
+    "displayColor": "#777BB4",
+    "source": "https://php.net/download-logos.php",
+    "neutralPlate": false
+  },
+  "maven": {
+    "brand": "Apache Maven",
+    "upstreamColor": "#C71A36",
+    "displayColor": "#C71A36",
+    "source": "https://apache.org/logos",
+    "neutralPlate": false
+  },
+  "starship": {
+    "brand": "Starship",
+    "upstreamColor": "#DD0B78",
+    "displayColor": "#DD0B78",
+    "source": "https://starship.rs",
+    "neutralPlate": false
+  },
+  "dotnet": {
+    "brand": ".NET",
+    "upstreamColor": "#512BD4",
+    "displayColor": "#512BD4",
+    "source": "https://github.com/dotnet/brand/blob/c7d0f51b8ec59531332d05fb27a5b758a7a3d689/logo/dotnet-logo.svg",
+    "neutralPlate": false
+  },
+  "bat": {
+    "brand": "bat",
+    "upstreamColor": "#31369E",
+    "displayColor": "#31369E",
+    "source": "https://github.com/sharkdp/bat/blob/018a4826211b8b486883b720a5daa65eca2d4604/doc/logo-header.svg",
+    "neutralPlate": false
+  },
+  "gh": {
+    "brand": "GitHub",
+    "upstreamColor": "#181717",
+    "displayColor": "#BA4A7D",
+    "source": "https://github.com/logos",
+    "neutralPlate": true
+  },
+  "pre-commit": {
+    "brand": "pre-commit",
+    "upstreamColor": "#FAB040",
+    "displayColor": "#FAB040",
+    "source": "https://github.com/pre-commit/pre-commit.com/blob/f263cdbcf46f97e1bd6229f2ab6d27bf8290ca88/logo.svg",
+    "neutralPlate": false
+  },
+  "kubernetes-cli": {
+    "brand": "Kubernetes",
+    "upstreamColor": "#326CE5",
+    "displayColor": "#326CE5",
+    "source": "https://github.com/kubernetes/kubernetes/tree/cac53883f4714452f3084a22e4be20d042a9df33/logo",
+    "neutralPlate": false
+  },
+  "redis": {
+    "brand": "Redis",
+    "upstreamColor": "#FF4438",
+    "displayColor": "#FF4438",
+    "source": "https://redis.io/brand-guidelines",
+    "neutralPlate": false
+  },
+  "podman": {
+    "brand": "Podman",
+    "upstreamColor": "#892CA0",
+    "displayColor": "#892CA0",
+    "source": "https://podman.io",
+    "neutralPlate": false
+  },
+  "cmake": {
+    "brand": "CMake",
+    "upstreamColor": "#064F8C",
+    "displayColor": "#064F8C",
+    "source": "https://www.kitware.com/platforms/",
+    "neutralPlate": false
+  },
+  "ansible": {
+    "brand": "Ansible",
+    "upstreamColor": "#EE0000",
+    "displayColor": "#EE0000",
+    "source": "https://www.ansible.com/logos",
+    "neutralPlate": false
+  },
+  "intellij": {
+    "brand": "IntelliJ IDEA",
+    "upstreamColor": "#000000",
+    "displayColor": "#BA4A7D",
+    "source": "https://www.jetbrains.com/idea/",
+    "neutralPlate": true
+  },
+  "deno": {
+    "brand": "Deno",
+    "upstreamColor": "#000000",
+    "displayColor": "#C16B28",
+    "source": "https://github.com/denoland/docs/blob/5dee713844c7447f80acd4093caa9d350d80bf36/static/img/logo.svg",
+    "neutralPlate": true
+  },
+  "mysql": {
+    "brand": "MySQL",
+    "upstreamColor": "#4479A1",
+    "displayColor": "#4479A1",
+    "source": "https://www.mysql.com/about/legal/logos.html",
+    "neutralPlate": false
+  },
+  "crystal": {
+    "brand": "Crystal",
+    "upstreamColor": "#000000",
+    "displayColor": "#C16B28",
+    "source": "https://crystal-lang.org/media/",
+    "neutralPlate": true
+  },
+  "go": {
+    "brand": "Go",
+    "upstreamColor": "#00ADD8",
+    "displayColor": "#00ADD8",
+    "source": "https://blog.golang.org/go-brand",
+    "neutralPlate": false
+  },
+  "neovim": {
+    "brand": "Neovim",
+    "upstreamColor": "#57A143",
+    "displayColor": "#57A143",
+    "source": "https://neovim.io",
+    "neutralPlate": false
+  },
+  "bazel": {
+    "brand": "Bazel",
+    "upstreamColor": "#43A047",
+    "displayColor": "#43A047",
+    "source": "https://bazel.build",
+    "neutralPlate": false
+  },
+  "neo4j": {
+    "brand": "Neo4j",
+    "upstreamColor": "#4581C3",
+    "displayColor": "#4581C3",
+    "source": "https://neo4j.com/brand/#logo",
+    "neutralPlate": false
+  },
+  "postgresql": {
+    "brand": "PostgreSQL",
+    "upstreamColor": "#4169E1",
+    "displayColor": "#4169E1",
+    "source": "https://wiki.postgresql.org/wiki/Logo",
+    "neutralPlate": false
+  },
+  "node": {
+    "brand": "Node.js",
+    "upstreamColor": "#5FA04E",
+    "displayColor": "#5FA04E",
+    "source": "https://nodejs.org/en/about/branding",
+    "neutralPlate": false
+  },
+  "duckdb": {
+    "brand": "DuckDB",
+    "upstreamColor": "#FFF000",
+    "displayColor": "#FFF000",
+    "source": "https://duckdb.org",
+    "neutralPlate": false
+  },
+  "gradle": {
+    "brand": "Gradle",
+    "upstreamColor": "#02303A",
+    "displayColor": "#BA4A7D",
+    "source": "https://gradle.com/brand",
+    "neutralPlate": true
+  }
+}

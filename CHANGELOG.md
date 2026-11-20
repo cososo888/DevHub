@@ -4,6 +4,15 @@ All notable changes to DevHub V2 are documented here.
 
 ## [Unreleased]
 
+### Efficient details and colorful icons
+
+- Remove generic package-manager policy from software introductions and avoid repeating the short description.
+- Describe common tools and Memcached by purpose and use cases; replace the other curated catalog templates with concrete one-line descriptions.
+- Restore local brand colors, add tinted plates for neutral marks, and remove theme-wide icon inversion.
+- Remove decorative development-stage labels and duplicate footer copy; record efficiency-first UI/content rules for ongoing macOS development.
+- Validation: 25 UI tests, type check and debug macOS app build passed. Light-mode native grid/details were inspected; no real package install/uninstall was performed.
+
+
 ### macOS UI refinement
 
 - Dismiss search when selecting another control or scrolling outside it; remove the top-left brand block.

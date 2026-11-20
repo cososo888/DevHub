@@ -383,3 +383,58 @@ test("opening a software dismisses search without losing the selected detail", a
   assert.equal(screen.queryByRole("textbox"), null);
   assert.ok(screen.getByRole("dialog", { name: "Memcached 详情" }));
 });
+
+
+test("Memcached introduction explains the software without repeated summaries or generic operation copy", async () => {
+  globalThis.__REDUCE__ = true;
+  const item = SOFTWARE.find(entry => entry.id === "memcached");
+  render(React.createElement(DetailOverlay, {
+    item, origin: { left: 30, top: 30, width: 100, height: 100 },
+    onClose() {}, homebrewReady: true
+  }));
+  await userEvent.setup().click(screen.getByRole("button", { name: "详细介绍" }));
+  const introduction = screen.getByRole("region", { name: "软件详细介绍" });
+  assert.match(introduction.textContent, /缓存|键值/);
+  assert.match(introduction.textContent, /内存|分布式/);
+  assert.equal(introduction.textContent.includes(item.description), false);
+  for (const unwanted of [
+    "由 Homebrew 提供当前版本",
+    "DevHub 会在操作前请求确认",
+    "安装结束后重新核对包状态",
+    "检测到的已有安装可能来自系统、官网或其他工具",
+    "只有 Homebrew 管理的软件包提供卸载操作"
+  ]) {
+    assert.equal(introduction.textContent.includes(unwanted), false, unwanted);
+  }
+});
+
+function colorPaints(svg) {
+  return new Set([svg, ...svg.querySelectorAll("[fill], [stroke]")]
+    .flatMap(element => [element.getAttribute("fill"), element.getAttribute("stroke")])
+    .filter(value => value && /^#[0-9a-f]{3,8}$/i.test(value))
+    .map(value => value.toLowerCase()));
+}
+
+test("brand icons keep color and multi-color artwork across themes instead of black or inverted images", async () => {
+  const { SoftwareLogo } = await import("../src/components/SoftwareLogo.tsx");
+  for (const id of ["python", "mysql"]) {
+    const view = render(React.createElement(SoftwareLogo, { id, name: id }));
+    const colors = colorPaints(view.container.querySelector("svg"));
+    colors.delete("#fff");
+    colors.delete("#ffffff");
+    assert.ok(colors.size >= 2, `${id} lost its multiple colored fills`);
+    view.unmount();
+  }
+  const ruby = readFileSync(fileURLToPath(new URL("../public/software-icons/ruby.svg", import.meta.url)), "utf8");
+  const document = new dom.window.DOMParser().parseFromString(ruby, "image/svg+xml");
+  assert.equal(document.querySelector("parsererror"), null);
+  const colors = colorPaints(document.documentElement);
+  assert.ok([...colors].some(color => !["#000", "#000000", "#fff", "#ffffff"].includes(color)), "bundled Ruby artwork must carry brand color");
+  const styles = readFileSync(fileURLToPath(new URL("../src/styles.css", import.meta.url)), "utf8");
+  assert.doesNotMatch(styles, /\.brand-logo[^{}]*\{[^}]*\bfilter\s*:\s*invert\(/);
+  const fallback = render(React.createElement(SoftwareLogo, { id: "fixture-without-brand-artwork", name: "Fixture" }));
+  const svg = fallback.container.querySelector("svg");
+  assert.ok(svg);
+  assert.equal(svg.querySelector("text"), null);
+  assert.ok([...colorPaints(svg)].some(color => !["#000", "#000000", "#fff", "#ffffff"].includes(color)), "fallback must be a colored tool glyph");
+});

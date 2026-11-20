@@ -533,6 +533,4 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, #root::-webkit-scrollbar,
 .software-description dd { margin: 0; }
 .detail-close { top: 20px; right: 20px; }
 
-.brand-logo { object-fit: contain; opacity: .88; }
-.app[data-theme="dark"] .brand-logo { filter: invert(1); }
-@media (prefers-color-scheme: dark) { .app[data-theme="system"] .brand-logo { filter: invert(1); } }
+.brand-logo { object-fit: contain; opacity: 1; }
