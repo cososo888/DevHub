@@ -4,6 +4,15 @@ All notable changes to DevHub V2 are documented here.
 
 ## [Unreleased]
 
+### Existing apps, scrolling details and DevHub branding
+
+- Detect existing curated cask applications in fixed application folders without running them; keep external ownership separate from Homebrew records.
+- Stop before downloading/installing over an existing unregistered app and explain same-name app conflicts in Chinese while retaining the original log.
+- Keep the real software icon inside the scrolling detail header; hide the separate morph artwork once open.
+- Add an original blue/indigo D-and-connection DevHub mark to the upper-left sidebar and replace the bundled application icon assets.
+- Build-only handoff for user testing: no automated/native tests or real package install/uninstall performed.
+
+
 ### Package-state errors and softer chrome
 
 - Treat empty nonzero Homebrew version queries as inconclusive and recheck exact formula/cask JSON, rather than blocking uninstalled casks with a generic error.

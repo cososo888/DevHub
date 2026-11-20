@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="base" x1="112" y1="96" x2="904" y2="944" gradientUnits="userSpaceOnUse"><stop stop-color="#5299FF"/><stop offset=".48" stop-color="#4F6FF1"/><stop offset="1" stop-color="#6752D5"/></linearGradient>
+    <radialGradient id="light" cx="0" cy="0" r="1" gradientTransform="translate(264 160) rotate(52) scale(768)" gradientUnits="userSpaceOnUse"><stop stop-color="#FFF" stop-opacity=".32"/><stop offset="1" stop-color="#FFF" stop-opacity="0"/></radialGradient>
+    <linearGradient id="mark" x1="320" y1="292" x2="704" y2="732" gradientUnits="userSpaceOnUse"><stop stop-color="#FFF"/><stop offset="1" stop-color="#E8EEFF"/></linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="208" fill="url(#base)"/>
+  <rect x="65" y="65" width="894" height="894" rx="207" fill="url(#light)" stroke="#FFF" stroke-opacity=".28" stroke-width="2"/>
+  <path fill="url(#mark)" fill-rule="evenodd" d="M300 292H476C616 292 724 388 724 512S616 732 476 732H300V292ZM402 390V634H476C557 634 622 585 622 512S557 390 476 390H402Z"/>
+  <path d="M350 512H524" stroke="#78E7DD" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="350" cy="512" r="31" fill="#78E7DD"/>
+  <circle cx="524" cy="512" r="31" fill="#78E7DD"/>
+</svg>

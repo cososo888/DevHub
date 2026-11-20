@@ -67,6 +67,7 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, hom
   const introductionId = useId();
   const installed = instances.length > 0 || brewInstalled;
   const nonBrewInstalled = instances.length > 0 && !brewInstalled;
+  const externalAppPresent = item.kind === "cask" && !brewInstalled && instances.some(instance => instance.kind === "app");
   const busy = Boolean(task);
   const packageName = item.package;
   const description = softwareDescription(item);
@@ -78,6 +79,7 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, hom
   return (
     <div className="detail-inner" tabIndex={interactive ? 0 : undefined} role={interactive ? "region" : undefined} aria-label={interactive ? `${item.name} 详情内容` : undefined}>
       <header className="detail-head">
+        <span className="detail-scroll-logo" aria-hidden="true"><SoftwareLogo id={item.id} name={item.name} /></span>
         <div className="detail-heading-line">
           <h2>{item.name}</h2>
           {description && <button type="button" className="description-toggle" aria-label="详细介绍" aria-expanded={expanded} aria-controls={introductionId} onClick={() => onExpanded(!expanded)}>
@@ -120,13 +122,13 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, hom
       )}
 
       <div className="env-actions">
-        {!brewInstalled && !busy && !confirm && (
+        {!brewInstalled && !externalAppPresent && !busy && !confirm && (
           <button type="button" className="primary" aria-label={`安装 ${item.name}`} disabled={!homebrewReady} onClick={() => onConfirm("install")}>安装</button>
         )}
         {brewInstalled && !busy && !confirm && (
           <button type="button" aria-label={`卸载 ${item.name}`} onClick={() => onConfirm("uninstall")}>卸载</button>
         )}
-        {!homebrewReady && !brewInstalled && <span className="managed-note">安装需要 Homebrew</span>}
+        {!homebrewReady && !brewInstalled && !externalAppPresent && <span className="managed-note">安装需要 Homebrew</span>}
       </div>
 
       {confirm && (

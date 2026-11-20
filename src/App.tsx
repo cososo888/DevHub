@@ -107,8 +107,19 @@ export default function App() {
       list.push(instance);
       map.set(instance.softwareId, list);
     }
+    for (const app of packages.externalApps ?? []) {
+      const software = SOFTWARE.find(item => item.kind === "cask" && item.package === app.package);
+      if (!software) continue;
+      const list = map.get(software.id) ?? [];
+      if (!list.some(instance => instance.path === app.path)) {
+        list.push({ softwareId: software.id, version: null, source: "externalApp", sources: ["externalApp"],
+          path: app.path, kind: "app", executable: false, managedBy: "external", health: "unverified",
+          detail: null, lastDetectedAt: snapshot?.refreshedAt ?? 0 });
+      }
+      map.set(software.id, list);
+    }
     return map;
-  }, [snapshot]);
+  }, [snapshot, packages.externalApps]);
 
   const brewMap = useMemo(() => {
     const map = new Map<string, PackageVersion>();
@@ -117,7 +128,7 @@ export default function App() {
     return map;
   }, [packages]);
 
-  const isInstalled = (item: Software) => instancesBySoftware.has(item.id) || brewMap.has(packageKey(item.kind, item.package));
+  const isInstalled = (item: Software) => (instancesBySoftware.get(item.id) ?? []).some(instance => item.kind !== "cask" || instance.kind === "app") || brewMap.has(packageKey(item.kind, item.package));
 
   const globalSearch = query.trim().length >= 2;
   const curated = useMemo(() => {
@@ -153,7 +164,7 @@ export default function App() {
     : null;
   const installedIds = useMemo(() => new Set(items.filter(isInstalled).map(item => item.id)), [items, instancesBySoftware, brewMap]);
   const searchCount = remoteItems.length;
-  const selectedInstances = selected ? instancesBySoftware.get(selected.item.id) ?? [] : [];
+  const selectedInstances = selected ? (instancesBySoftware.get(selected.item.id) ?? []).filter(instance => selected.item.kind !== "cask" || instance.kind === "app") : [];
   const selectedBrew = selected ? brewMap.get(packageKey(selected.item.kind, selected.item.package)) ?? null : null;
   const busyIds = useMemo(() => {
     if (!install.task) return new Set<string>();

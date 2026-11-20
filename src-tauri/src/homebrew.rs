@@ -2,7 +2,7 @@
 //! DevHub never downloads or unpacks packages itself; every action is a fixed argv call.
 
 use serde::Serialize;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -18,6 +18,12 @@ const INFO_TIMEOUT: Duration = Duration::from_secs(45);
 const INSTALL_TIMEOUT: Duration = Duration::from_secs(1800);
 const UNINSTALL_TIMEOUT: Duration = Duration::from_secs(600);
 const OUTPUT_LIMIT: usize = 8 * 1024 * 1024;
+// Curated GUI packages only. Resolve their declared app artifacts in one metadata query.
+const CURATED_CASKS: &[&str] = &[
+    "visual-studio-code", "docker", "intellij-idea", "rectangle", "raycast", "alfred",
+    "cleanshot", "hiddenbar", "alt-tab", "stats", "monitorcontrol", "appcleaner",
+    "blender", "gimp", "inkscape", "krita",
+];
 
 #[derive(Clone, Debug)]
 pub struct Brew { pub path: PathBuf }
@@ -31,7 +37,13 @@ pub struct PackageVersion { pub package: String, pub version: String, pub path: 
 pub struct InstalledPackages {
     pub formulae: Vec<PackageVersion>,
     pub casks: Vec<PackageVersion>,
+    pub external_apps: Vec<ExternalApp>,
 }
+
+/// Presence at a declared application path is not Homebrew ownership or execution approval.
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalApp { pub package: String, pub path: String }
 
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -57,6 +69,9 @@ fn run(brew: &Brew, args: &[&str], timeout: Duration) -> Result<String, String> 
     let output = process::run_with_env(&brew.path, args, timeout, OUTPUT_LIMIT, ENV)?;
     if output.status != 0 {
         let text = format!("{}\n{}", output.stdout, output.stderr).trim().to_string();
+        if args.first() == Some(&"install") && text.to_lowercase().contains("there is already an app at") {
+            return Err(format!("已有应用，Homebrew 为避免覆盖而停止安装。请先查看已有应用。\n\n[Homebrew 原始输出]\n{text}"));
+        }
         return Err(if text.is_empty() { "Homebrew 命令返回失败".into() } else { text });
     }
     Ok(format!("{}\n{}", output.stdout, output.stderr))
@@ -87,9 +102,12 @@ pub fn installed_packages() -> Result<InstalledPackages, String> {
             Some(PackageVersion { package, version: if version.is_empty() { "未知版本".into() } else { version }, path })
         }).collect()
     };
+    let mut casks = parse(&cask_output.stdout, "cask");
+    let external_apps = curated_external_apps(&brew, &mut casks)?;
     Ok(InstalledPackages {
         formulae: parse(&formula_output.stdout, "formula"),
-        casks: parse(&cask_output.stdout, "cask"),
+        casks,
+        external_apps,
     })
 }
 
@@ -130,17 +148,163 @@ fn cask_installed_from_json(text: &str, package: &str) -> Result<bool, String> {
     let casks = value.get("casks").and_then(serde_json::Value::as_array)
         .ok_or_else(|| "Homebrew 没有返回 casks 数组".to_string())?;
     for cask in casks {
-        let token = cask.get("token").and_then(serde_json::Value::as_str);
-        let full_token = cask.get("full_token").and_then(serde_json::Value::as_str);
-        if token != Some(package) && full_token != Some(package) { continue; }
-        return match cask.get("installed") {
-            Some(serde_json::Value::Null) => Ok(false),
-            Some(serde_json::Value::String(version)) if !version.trim().is_empty() => Ok(true),
-            Some(serde_json::Value::Array(versions)) if versions.iter().all(|version| version.as_str().is_some_and(|s| !s.trim().is_empty())) => Ok(!versions.is_empty()),
-            _ => Err("Homebrew cask 缺少可确认的安装状态".into()),
-        };
+        if !cask_matches(cask, package) { continue; }
+        return cask_installed_state(cask);
     }
     Err(format!("Homebrew JSON 中没有精确匹配的 cask：{package}"))
+}
+
+fn cask_installed_state(cask: &serde_json::Value) -> Result<bool, String> {
+    match cask.get("installed") {
+        Some(serde_json::Value::Null) => Ok(false),
+        Some(serde_json::Value::String(version)) if !version.trim().is_empty() => Ok(true),
+        Some(serde_json::Value::Array(versions)) if versions.iter().all(|version| version.as_str().is_some_and(|s| !s.trim().is_empty())) => Ok(!versions.is_empty()),
+        _ => Err("Homebrew cask 缺少可确认的安装状态".into()),
+    }
+}
+
+fn cask_matches(cask: &serde_json::Value, package: &str) -> bool {
+    cask.get("token").and_then(serde_json::Value::as_str) == Some(package)
+        || cask.get("full_token").and_then(serde_json::Value::as_str) == Some(package)
+        || cask.get("old_tokens").and_then(serde_json::Value::as_array)
+            .is_some_and(|tokens| tokens.iter().any(|token| token.as_str() == Some(package)))
+}
+
+fn cask_info(brew: &Brew, packages: &[&str]) -> Result<serde_json::Value, String> {
+    let mut args = vec!["info", "--json=v2", "--cask"];
+    args.extend_from_slice(packages);
+    let output = process::run_with_env(&brew.path, &args, INFO_TIMEOUT, OUTPUT_LIMIT, ENV)?;
+    if output.status != 0 { return Err(query_failure("无法核对桌面应用目标", &output)); }
+    serde_json::from_str(&output.stdout).map_err(|error| format!("桌面应用元数据无法解析：{error}"))
+}
+
+fn exact_cask<'a>(info: &'a serde_json::Value, package: &str) -> Result<&'a serde_json::Value, String> {
+    let casks = info.get("casks").and_then(serde_json::Value::as_array)
+        .ok_or("Homebrew 没有返回 casks 数组")?;
+    let mut matching = casks.iter().filter(|cask| cask_matches(cask, package));
+    let cask = matching.next().ok_or_else(|| format!("桌面应用元数据没有精确匹配：{package}"))?;
+    if matching.next().is_some() { return Err(format!("桌面应用元数据匹配不唯一：{package}")); }
+    Ok(cask)
+}
+
+fn app_filename(value: &str, source: bool) -> Result<String, String> {
+    if value.is_empty() || value.chars().any(char::is_control) { return Err("应用目标名称无效".into()); }
+    let path = Path::new(value);
+    if path.components().any(|component| !matches!(component, Component::Normal(_))) {
+        return Err("应用目标不能包含绝对路径或上级目录".into());
+    }
+    if !source && path.components().count() != 1 { return Err("应用目标必须是单个文件名".into()); }
+    let name = path.file_name().and_then(|name| name.to_str()).ok_or("应用目标不是UTF-8")?;
+    if !name.ends_with(".app") || name.len() <= 4 || name.len() > 255 { return Err("应用目标不是合法app名称".into()); }
+    Ok(name.into())
+}
+
+fn declared_app_names(cask: &serde_json::Value) -> Result<Vec<String>, String> {
+    let artifacts = cask.get("artifacts").and_then(serde_json::Value::as_array)
+        .ok_or("桌面应用缺少 artifacts 元数据")?;
+    let mut names = Vec::new();
+    for artifact in artifacts {
+        let Some(app) = artifact.get("app") else { continue };
+        let app = app.as_array().ok_or("桌面应用的app目标格式不正确")?;
+        let source = app.first().and_then(serde_json::Value::as_str).ok_or("桌面应用缺少app源名称")?;
+        let mut name = app_filename(source, true)?;
+        for option in app.iter().skip(1) {
+            let option = option.as_object().ok_or("桌面应用目标选项格式不正确")?;
+            if let Some(target) = option.get("target") {
+                name = app_filename(target.as_str().ok_or("桌面应用目标名称格式不正确")?, false)?;
+            }
+        }
+        if !names.contains(&name) { names.push(name); }
+    }
+    Ok(names)
+}
+
+/// Reject observed symlinks/non-directories component by component. Metadata-only presence:
+/// this does not confer ownership or an atomic filesystem proof, and never executes the app.
+fn ordinary_directory(path: &Path) -> Result<bool, String> {
+    if !path.is_absolute() { return Err("应用检查根必须是绝对目录".into()); }
+    let mut current = PathBuf::from("/");
+    for component in path.components() {
+        match component {
+            Component::RootDir => continue,
+            Component::Normal(name) => current.push(name),
+            _ => return Err("应用检查路径不允许跳转目录".into()),
+        }
+        match std::fs::symlink_metadata(&current) {
+            Ok(metadata) if metadata.file_type().is_dir() => (),
+            Ok(_) => return Err(format!("已有应用或路径条目无法安全确认：{}；不会覆盖或跟随链接", current.display())),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            Err(error) => return Err(format!("无法读取应用路径元数据：{}：{error}", current.display())),
+        }
+    }
+    Ok(true)
+}
+
+fn application_roots() -> Result<Vec<PathBuf>, String> {
+    let mut roots = vec![PathBuf::from("/Applications")];
+    let home = std::env::var_os("HOME").map(PathBuf::from).ok_or("无法确认用户应用目录")?;
+    if !home.is_absolute() { return Err("用户主目录不是绝对路径".into()); }
+    roots.push(home.join("Applications"));
+    Ok(roots)
+}
+
+fn existing_apps(cask: &serde_json::Value, package: &str) -> Result<Vec<ExternalApp>, String> {
+    let names = declared_app_names(cask)?;
+    let mut found = Vec::new();
+    for root in application_roots()? {
+        if !ordinary_directory(&root)? { continue; }
+        for name in &names {
+            let app = root.join(name);
+            if !ordinary_directory(&app)? { continue; }
+            if !ordinary_directory(&app.join("Contents"))? {
+                return Err(format!("已有应用但结构不完整：{}；不会覆盖", app.display()));
+            }
+            let info = app.join("Contents/Info.plist");
+            match std::fs::symlink_metadata(&info) {
+                Ok(metadata) if metadata.file_type().is_file() => (),
+                _ => return Err(format!("已有应用但Info.plist无法安全确认：{}；不会覆盖", app.display())),
+            }
+            found.push(ExternalApp { package: package.into(), path: app.to_string_lossy().into_owned() });
+        }
+    }
+    Ok(found)
+}
+
+fn curated_external_apps(brew: &Brew, installed: &mut Vec<PackageVersion>) -> Result<Vec<ExternalApp>, String> {
+    let info = cask_info(brew, CURATED_CASKS)?;
+    let mut external = Vec::new();
+    for package in CURATED_CASKS {
+        let cask = exact_cask(&info, package)?;
+        let token = cask.get("token").and_then(serde_json::Value::as_str).ok_or("桌面应用缺少token")?;
+        if let Some(current) = installed.iter().find(|record| record.package == *package || record.package == token).cloned() {
+            // Preserve official old-token aliases without treating a Homebrew app as external.
+            if current.package != *package { installed.push(PackageVersion { package: (*package).into(), ..current }); }
+            continue;
+        }
+        if cask_installed_state(cask)? {
+            return Err(format!("桌面应用 {package} 的安装记录在查询期间变化，请刷新状态"));
+        }
+        external.extend(existing_apps(cask, package)?);
+    }
+    Ok(external)
+}
+
+/// Rechecked immediately before invoking Homebrew; no overwrite/adoption flags are used.
+pub fn check_installation_target(package: &str, kind: &str) -> Result<(), String> {
+    if !valid_kind(kind) || !valid_package(package) { return Err("无效的 Homebrew 包标识".into()); }
+    if kind != "cask" { return Ok(()); }
+    let brew = probe()?;
+    let info = cask_info(&brew, &[package])?;
+    let cask = exact_cask(&info, package)?;
+    if cask_installed_state(cask)? {
+        return Err("Homebrew 已经安装该软件包，请刷新状态".into());
+    }
+    let existing = existing_apps(cask, package)?;
+    if !existing.is_empty() {
+        let paths = existing.iter().map(|app| app.path.as_str()).collect::<Vec<_>>().join("、");
+        return Err(format!("已有应用：{paths}。该应用未登记为 Homebrew 管理，DevHub 不会覆盖。请先查看已有应用。"));
+    }
+    Ok(())
 }
 
 fn query_failure(context: &str, output: &process::Output) -> String {
@@ -226,6 +390,7 @@ pub fn install_package(package: &str, kind: &str) -> Result<String, String> {
     if !valid_kind(kind) || !valid_package(package) { return Err("无效的 Homebrew 包标识".into()); }
     if !package_exists(package, kind)? { return Err("Homebrew 中找不到该软件包".into()); }
     if package_installed(package, kind)? { return Err("Homebrew 已经安装该软件包".into()); }
+    check_installation_target(package, kind)?;
     let brew = probe()?;
     let args = if kind == "cask" { vec!["install", "--cask", package] } else { vec!["install", package] };
     run(&brew, &args, INSTALL_TIMEOUT)

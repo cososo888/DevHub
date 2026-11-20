@@ -188,6 +188,7 @@ fn start_package_install(app: AppHandle, state: State<AppState>, package: String
     if homebrew::package_installed(&package, &kind)? {
         return Err("Homebrew 已经安装该软件包".into());
     }
+    homebrew::check_installation_target(&package, &kind)?;
     if state.install_busy.swap(true, Ordering::SeqCst) {
         return Err("已有安装或卸载任务正在执行".into());
     }

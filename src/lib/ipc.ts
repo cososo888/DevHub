@@ -57,9 +57,15 @@ export interface PackageVersion {
   path: string;
 }
 
+export interface ExternalApp {
+  package: string;
+  path: string;
+}
+
 export interface InstalledPackages {
   formulae: PackageVersion[];
   casks: PackageVersion[];
+  externalApps?: ExternalApp[];
 }
 
 export interface HomebrewResult {
