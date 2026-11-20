@@ -1,4 +1,5 @@
 mod detection;
+mod desktop;
 mod homebrew;
 mod process;
 mod storage;
@@ -102,10 +103,12 @@ fn emit_progress(app: &AppHandle, job_id: u64, software_id: &str, version: &str,
 }
 
 fn emit_finished(app: &AppHandle, job_id: u64, software_id: &str, version: &str, action: &str, success: bool, message: &str, output: &str, verification: Option<Verification>) {
+    let verified_install = action == "install" && success && verification.as_ref().is_some_and(|result| result.verified);
     let _ = app.emit("installation://finished", InstallFinished {
         job_id, software_id: software_id.into(), version: version.into(), action: action.into(),
         success, message: message.into(), output: truncate_output(output), verification,
     });
+    if verified_install { desktop::installation_complete(app, software_id); }
 }
 
 fn publish_snapshot(app: &AppHandle, state: &AppState, snapshot: &mut DetectionSnapshot) {
@@ -266,8 +269,11 @@ fn start_package_uninstall(app: AppHandle, state: State<AppState>, package: Stri
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
+        .on_window_event(desktop::on_window_event)
         .setup(|app| {
+            desktop::setup(app)?;
             let dir = app.path().app_data_dir().map_err(|error| std::io::Error::other(error.to_string()))?;
             let state = AppState::new(dir).map_err(std::io::Error::other)?;
             app.manage(state);
@@ -283,6 +289,7 @@ pub fn run() {
             start_package_install,
             start_package_uninstall
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running DevHub V2");
+        .build(tauri::generate_context!())
+        .expect("error while building DevHub V2");
+    app.run(|handle, event| desktop::on_run_event(handle, &event));
 }

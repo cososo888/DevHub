@@ -4,6 +4,15 @@ All notable changes to DevHub V2 are documented here.
 
 ## [Unreleased]
 
+### Dock lifetime and install notifications
+
+- On macOS, closing the main window hides it while the app stays in the Dock and current work continues.
+- Clicking the Dock icon restores the same window and its state; Dock Quit and Cmd+Q still exit normally.
+- Send a backend-owned system notification only after successful installation has been reverified, including while the window is hidden.
+- Clicking a completion notification brings DevHub back; system notification settings still control delivery.
+- Build-only handoff: no automated tests, window actions or real package install/uninstall performed.
+
+
 ### Existing apps, scrolling details and DevHub branding
 
 - Detect existing curated cask applications in fixed application folders without running them; keep external ownership separate from Homebrew records.
