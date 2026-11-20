@@ -18,5 +18,5 @@
 - Treat an existing non-Homebrew .app as external ownership: do not overwrite, adopt or expose package-manager uninstall for it.
 
 - Global search is a separate page entered from the magnifier. Keep its query/results independent of library categories, installation filters and scroll position; preserve both when navigating back.
-- Use macOS UserNotifications with actual consent/status checks. Do not assume a native notification submission means the banner was displayed. Notification tests are triggered by the user from the bell menu.
+- Use macOS UserNotifications with actual consent/status checks. Do not assume a native notification submission means the banner was displayed. Notification tests are triggered by the user from the notification settings in the sidebar guide.
 - Installed software uses a subtle blue halo, without multiple hard circular outlines.

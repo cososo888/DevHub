@@ -5,7 +5,6 @@ import type { Theme } from "../hooks/useTheme";
 import type { OrbOrigin } from "./DetailOverlay";
 import { SoftwareLogo } from "./SoftwareLogo";
 import { ThemePicker } from "./ThemePicker";
-import { NotificationMenu } from "./NotificationMenu";
 
 function SearchIcon({ size = 20 }: { size?: number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>;
@@ -29,7 +28,7 @@ export function SearchToolbar({ query, onQuery, onBack, onSearch, theme, onTheme
         <button type="submit" className="search-submit">搜索</button>
       </form>
     </div>
-    <div className="toolbar-right" data-tauri-drag-region><NotificationMenu /><ThemePicker theme={theme} onTheme={onTheme}/></div>
+    <div className="toolbar-right" data-tauri-drag-region><ThemePicker theme={theme} onTheme={onTheme}/></div>
   </div>;
 }
 
@@ -46,9 +45,9 @@ function SearchResult({ item, installed, busy, source, onOpen }: {
   </button>;
 }
 
-export function SearchPage({ query, curated, remote, searching, error, onQuery, onRetry, isInstalled, isBusy, sourceId, onOpen }: {
+export function SearchPage({ query, curated, remote, searching, error, onQuery, onRetry, onSetup, isInstalled, isBusy, sourceId, onOpen }: {
   query: string; curated: Software[]; remote: Software[]; searching: boolean; error: string | null;
-  onQuery: (value: string) => void; onRetry: () => void;
+  onQuery: (value: string) => void; onRetry: () => void; onSetup?: () => void;
   isInstalled: (item: Software) => boolean; isBusy: (item: Software) => boolean;
   sourceId: string | null; onOpen: (item: Software, origin: OrbOrigin) => void;
 }) {
@@ -62,7 +61,10 @@ export function SearchPage({ query, curated, remote, searching, error, onQuery, 
     </div> : <>
       <div className="search-page-heading"><h1>“{text}” 的搜索结果</h1><p>全软件库搜索</p></div>
       {curated.length > 0 && <section className="search-result-group" aria-label="精选软件搜索结果"><h2>精选软件 <span>{curated.length}</span></h2><div className="search-result-list">{curated.map(row)}</div></section>}
-      {text.length < 2 ? <p className="search-hint" role="status">输入至少 2 个字符，搜索 Homebrew 软件库</p> : <section className="search-result-group" aria-label="Homebrew 软件库搜索结果">
+      {onSetup ? <div className="search-hint">
+        {curated.length ? "搜索更多软件需要 Homebrew" : "精选软件中没有匹配项。搜索更多软件需要 Homebrew"}
+        <button type="button" className="guide-link" onClick={onSetup}>查看使用指南</button>
+      </div> : text.length < 2 ? <p className="search-hint" role="status">输入至少 2 个字符，搜索 Homebrew 软件库</p> : <section className="search-result-group" aria-label="Homebrew 软件库搜索结果">
         <h2>Homebrew 软件库 {remote.length > 0 && <span>{remote.length}</span>}</h2>
         {remote.length > 0 && <div className="search-result-list">{remote.map(row)}</div>}
         {searching && <p className="search-hint" role="status"><span className="mini-spinner"/>正在查找更多软件…</p>}

@@ -138,25 +138,11 @@ Every package name is verified against Homebrew; no invented package names.
 
 ### Prebuilt macOS DMG
 
-Apple Silicon (arm64):
+The current build targets Apple Silicon and has a minimum deployment target of macOS 11. GitHub’s “Download ZIP” contains source code. Check [GitHub Releases](https://github.com/cososo888/DevHub/releases) for a public DMG. If none is listed, obtain a local build from the distributor or follow the source instructions below.
 
-[**DevHub-V2-0.1.0-aarch64.dmg**](dist/DevHub-V2-0.1.0-aarch64.dmg)
-
-SHA-256:
-
-```text
-888050f32880b04ecd2fd4026667948c0acdbb5dc594908c70606b62ec092347
-```
-
-Steps:
-
-1. Open the DMG.
-2. Drag `DevHub V2.app` into Applications.
-3. If Gatekeeper blocks the first launch, right-click the app and choose **Open**.
-
-> The app is ad-hoc signed and not notarized. A Gatekeeper warning is expected.
->
-> Homebrew is required for install/uninstall actions. View-only detection works without it.
+1. Open the DMG, drag `DevHub V2.app` into Applications and launch it there. The current build is ad-hoc signed and has not been notarized. macOS may block the first launch. [Apple’s guide to opening downloaded apps](https://support.apple.com/en-us/102445)
+2. Browse the catalog, search curated software and view detected tools immediately. The packaged app runs without Node.js or Rust.
+3. Installing, uninstalling and searching the wider Homebrew catalog require Homebrew. When DevHub cannot find it in the usual locations, the in-app guide links to the official site. Check the requirements, run the official macOS `.pkg` installer, then return to DevHub and recheck. The sidebar guide also contains optional notification settings. [Homebrew](https://brew.sh/)
 
 ### Run from source
 
@@ -219,7 +205,7 @@ src/                         React frontend
 src-tauri/                   Rust/Tauri backend
 docs/                        Reports, screenshots and Windows handoff
 scripts/                     UI/catalog tests
-dist/                        Prebuilt macOS DMG
+dist/                        Generated Vite frontend assets
 .github/                     CI, release workflow, issue/PR templates
 ```
 
@@ -230,7 +216,7 @@ dist/                        Prebuilt macOS DMG
 | Phase 1 | Done | Grid, detail card, themes, initial detection |
 | Phase 2 | Done | Real local detection, install task, progress/logs |
 | Phase 3 | Done | 100 packages, full-library search, safe install/uninstall |
-| macOS v0.1.0 | Available | Apple Silicon DMG |
+| macOS v0.1.0 | Local build | Apple Silicon DMG |
 | Windows | **Not implemented** | winget provider, Windows detection, NSIS |
 
 ## Windows plan

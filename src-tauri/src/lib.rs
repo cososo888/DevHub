@@ -169,11 +169,11 @@ fn search_homebrew(query: String) -> Result<Vec<homebrew::HomebrewResult>, Strin
 
 #[tauri::command]
 fn open_homebrew_site() -> Result<(), String> {
-    std::process::Command::new("open")
-        .arg("https://brew.sh")
+    let status = std::process::Command::new("/usr/bin/open")
+        .arg("https://brew.sh/")
         .status()
-        .map(|_| ())
-        .map_err(|error| format!("无法打开 Homebrew 页面：{error}"))
+        .map_err(|error| format!("无法打开 Homebrew 页面：{error}"))?;
+    if status.success() { Ok(()) } else { Err(format!("浏览器未打开 Homebrew 页面（{status}）")) }
 }
 
 fn service_note(package: &str) -> &'static str {

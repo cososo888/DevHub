@@ -12,10 +12,12 @@ const FILTERS: { value: InstallationFilter; label: string; path: string }[] = [
   { value: "not-installed", label: "未安装", path: "M12 5v14M5 12h14" }
 ];
 
-export function InstallationSidebar({ value, onChange, counts }: {
+export function InstallationSidebar({ value, onChange, counts, onGuide, guideOpen }: {
   value: InstallationFilter;
   onChange: (value: InstallationFilter) => void;
   counts: InstallationCounts;
+  onGuide: () => void;
+  guideOpen: boolean;
 }) {
   return <aside className="installation-sidebar">
     <nav aria-label="安装状态筛选">
@@ -25,5 +27,9 @@ export function InstallationSidebar({ value, onChange, counts }: {
         <small aria-label={`${filter.label}数量`}>{counts[filter.value] ?? "—"}</small>
       </button>)}
     </nav>
+    <button type="button" id="guide-trigger" className="guide-trigger" aria-expanded={guideOpen} aria-controls={guideOpen ? "getting-started" : undefined} onClick={onGuide}>
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true"><path d="M12 6c-3-2-7-2-10-1v14c3-1 7-1 10 1 3-2 7-2 10-1V5c-3-1-7-1-10 1Zm0 0v14"/></svg>
+      使用指南
+    </button>
   </aside>;
 }

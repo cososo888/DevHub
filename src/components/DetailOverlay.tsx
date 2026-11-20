@@ -46,13 +46,15 @@ export function anchoredCard(origin: OrbOrigin, width: number, height: number, v
   return { left, top, width: w, height: natural };
 }
 
-function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, homebrewReady, task, result, actionError, confirm, onConfirm, onInstall, onUninstall, expanded, onExpanded, interactive = false }: {
+function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, absenceConfirmed, homebrewReady, onSetup, task, result, actionError, confirm, onConfirm, onInstall, onUninstall, expanded, onExpanded, interactive = false }: {
   item: Software;
   instances: SoftwareInstance[];
   brewInstalled: boolean;
   brewVersion: string | null;
   brewPath: string | null;
+  absenceConfirmed: boolean;
   homebrewReady: boolean;
+  onSetup?: () => void;
   task: InstallProgress | null;
   result: InstallFinished | null;
   actionError: string | null;
@@ -99,7 +101,7 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, hom
         </>}
       </section>}
       <div className="env-summary">
-        <span className={`env-state${installed ? " installed" : ""}`}>{installed ? "已安装" : "未安装"}</span>
+        <span className={`env-state${installed ? " installed" : ""}`}>{installed ? "已安装" : absenceConfirmed ? "未安装" : "安装状态未确认"}</span>
         {brewInstalled && <span className="managed-note">Homebrew 管理</span>}
         {nonBrewInstalled && <span className="managed-note">系统或其他方式安装，仅查看</span>}
       </div>
@@ -128,7 +130,10 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, hom
         {brewInstalled && !busy && !confirm && (
           <button type="button" aria-label={`卸载 ${item.name}`} onClick={() => onConfirm("uninstall")}>卸载</button>
         )}
-        {!homebrewReady && !brewInstalled && !externalAppPresent && <span className="managed-note">安装需要 Homebrew</span>}
+        {!homebrewReady && !brewInstalled && !externalAppPresent && <>
+          <span className="managed-note">安装需要 Homebrew</span>
+          {onSetup && <button type="button" onClick={onSetup}>查看使用指南</button>}
+        </>}
       </div>
 
       {confirm && (
@@ -176,7 +181,7 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, hom
   );
 }
 
-export function DetailOverlay({ item, origin, onClose, instances = [], brewInstalled = false, brewVersion = null, brewPath = null, homebrewReady = false, task = null, result = null, actionError = null, onInstall, onUninstall }: {
+export function DetailOverlay({ item, origin, onClose, instances = [], brewInstalled = false, brewVersion = null, brewPath = null, absenceConfirmed = true, homebrewReady = false, onSetup, task = null, result = null, actionError = null, onInstall, onUninstall }: {
   item: Software;
   origin: OrbOrigin;
   onClose: () => void;
@@ -184,7 +189,9 @@ export function DetailOverlay({ item, origin, onClose, instances = [], brewInsta
   brewInstalled?: boolean;
   brewVersion?: string | null;
   brewPath?: string | null;
+  absenceConfirmed?: boolean;
   homebrewReady?: boolean;
+  onSetup?: () => void;
   task?: InstallProgress | null;
   result?: InstallFinished | null;
   actionError?: string | null;
@@ -228,7 +235,7 @@ export function DetailOverlay({ item, origin, onClose, instances = [], brewInsta
       second = requestAnimationFrame(() => setEntered(true));
     });
     return () => { cancelAnimationFrame(first); if (second) cancelAnimationFrame(second); };
-  }, [origin.left, origin.top, origin.width, origin.height, width, viewport.width, viewport.height, reduced, instanceSignature, task?.message, result, actionError, confirm, item.package, brewInstalled, brewVersion, brewPath, homebrewReady, expanded]);
+  }, [origin.left, origin.top, origin.width, origin.height, width, viewport.width, viewport.height, reduced, instanceSignature, task?.message, result, actionError, confirm, item.package, brewInstalled, brewVersion, brewPath, absenceConfirmed, homebrewReady, Boolean(onSetup), expanded]);
 
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -255,13 +262,13 @@ export function DetailOverlay({ item, origin, onClose, instances = [], brewInsta
   const geometry: CSSProperties = entered
     ? { left: target.left, top: target.top, width: target.width, height: target.height, borderRadius: Math.max(1, origin.width / 2) }
     : { left: origin.left, top: origin.top, width: origin.width, height: origin.height, borderRadius: Math.max(1, origin.width / 2) };
-  const body = <DetailBody item={item} instances={instances} brewInstalled={brewInstalled} brewVersion={brewVersion} brewPath={brewPath} homebrewReady={homebrewReady} task={task} result={result} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} expanded={expanded} onExpanded={setExpanded} interactive />;
+  const body = <DetailBody item={item} instances={instances} brewInstalled={brewInstalled} brewVersion={brewVersion} brewPath={brewPath} absenceConfirmed={absenceConfirmed} homebrewReady={homebrewReady} onSetup={onSetup} task={task} result={result} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} expanded={expanded} onExpanded={setExpanded} interactive />;
 
   return createPortal(
     <div className="detail-layer">
       <div className="detail-catcher" onClick={close} aria-hidden="true" />
       <div ref={measure} className="detail-measure" style={{ width }} aria-hidden="true">
-        <DetailBody item={item} instances={instances} brewInstalled={brewInstalled} brewVersion={brewVersion} brewPath={brewPath} homebrewReady={homebrewReady} task={task} result={result} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} expanded={expanded} onExpanded={setExpanded} />
+        <DetailBody item={item} instances={instances} brewInstalled={brewInstalled} brewVersion={brewVersion} brewPath={brewPath} absenceConfirmed={absenceConfirmed} homebrewReady={homebrewReady} onSetup={onSetup} task={task} result={result} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} expanded={expanded} onExpanded={setExpanded} />
       </div>
       <section ref={card} className={`morph-card${entered ? " open" : ""}${closing ? " closing" : ""}`} style={{ ...geometry, "--orb-accent": item.accent } as CSSProperties} role="dialog" aria-modal="true" aria-label={`${item.name} 详情`} onClick={event => event.stopPropagation()}>
         <span className="morph-logo" aria-hidden="true"><SoftwareLogo id={item.id} name={item.name} /></span>

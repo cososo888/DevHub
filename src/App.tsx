@@ -9,6 +9,8 @@ import type { InstallationFilter } from "./components/InstallationSidebar";
 import { Toolbar } from "./components/Toolbar";
 import { WindowChrome } from "./components/WindowChrome";
 import { SearchPage, SearchToolbar } from "./components/SearchPage";
+import { GettingStarted } from "./components/GettingStarted";
+import type { BrewReadiness } from "./components/GettingStarted";
 import { InstallationNotice } from "./components/InstallationNotice";
 import { useSoftwareSearch } from "./hooks/useSoftwareSearch";
 import { useDetection } from "./hooks/useDetection";
@@ -27,6 +29,8 @@ function packageKey(kind: PackageKind, packageName: string) {
   return `${kind}:${packageName}`;
 }
 
+const GUIDE_DISMISSED = "devhub.gettingStarted.dismissed.v1";
+
 export default function App() {
   const { theme, setTheme } = useTheme();
   const { snapshot, refreshing, error, refresh } = useDetection();
@@ -38,7 +42,19 @@ export default function App() {
   const [page, setPage] = useState<"library" | "search">("library");
   const [selected, setSelected] = useState<{ item: Software; origin: OrbOrigin } | null>(null);
   const [packages, setPackages] = useState<InstalledPackages>({ formulae: [], casks: [] });
-  const search = useSoftwareSearch(query, page === "search");
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [guideDismissed, setGuideDismissed] = useState(() => {
+    try { return localStorage.getItem(GUIDE_DISMISSED) === "1"; }
+    catch { return false; }
+  });
+  const brewState: BrewReadiness = refreshing ? "checking"
+    : error || !snapshot || snapshot.stale || snapshot.homebrew.error ? "error"
+    : snapshot.homebrew.available ? "ready" : "missing";
+  const missingBrew = brewState === "missing";
+  const search = useSoftwareSearch(query, page === "search" && !missingBrew);
+  useEffect(() => {
+    if (missingBrew && !guideDismissed) setGuideOpen(true);
+  }, [missingBrew, guideDismissed]);
   const scrollPositions = useRef({ library: 0, search: 0 });
   const navigate = useCallback((next: "library" | "search") => {
     if (next === page) return;
@@ -48,6 +64,23 @@ export default function App() {
   }, [page]);
 
   useLayoutEffect(() => { window.scrollTo(0, scrollPositions.current[page]); }, [page]);
+  function showGuide() {
+    setSelected(null);
+    navigate("library");
+    setGuideOpen(true);
+    requestAnimationFrame(() => {
+      const guide = document.getElementById("getting-started");
+      guide?.focus({ preventScroll: true });
+      guide?.scrollIntoView({ block: "start" });
+    });
+  }
+  function dismissGuide() {
+    setGuideOpen(false);
+    setGuideDismissed(true);
+    try { localStorage.setItem(GUIDE_DISMISSED, "1"); } catch { /* Only remember it for this session. */ }
+    document.getElementById("guide-trigger")?.focus();
+  }
+
   useEffect(() => {
     if (page !== "search" || selected) return;
     const back = (event: KeyboardEvent) => {
@@ -107,7 +140,8 @@ export default function App() {
   const items = candidates.filter(item => installationFilter === "all"
     || (installationFilter === "installed" ? isInstalled(item) : absenceConfirmed && !isInstalled(item)));
   const filterNotice = installationFilter === "not-installed" && !absenceConfirmed
-    ? packagesStatus === "error" ? "软件状态查询未完成，暂不能确认未安装列表。"
+    ? missingBrew ? "未检测到 Homebrew，暂不能确认完整的未安装列表。"
+      : packagesStatus === "error" ? "软件状态查询未完成，暂不能确认未安装列表。"
       : refreshing || packagesStatus === "loading" ? "正在核对安装状态…" : "检测结果尚未确认，请刷新检测。"
     : null;
   const installedIds = useMemo(() => new Set(items.filter(isInstalled).map(item => item.id)), [items, instancesBySoftware, brewMap]);
@@ -136,7 +170,7 @@ export default function App() {
           : <SearchToolbar query={query} onQuery={setQuery} onBack={() => navigate("library")} onSearch={search.retry} theme={theme} onTheme={setTheme}/>}
       </WindowChrome>
       <div className="workspace" hidden={page !== "library"}>
-      <InstallationSidebar value={installationFilter} onChange={setInstallationFilter} counts={counts} />
+      <InstallationSidebar value={installationFilter} onChange={setInstallationFilter} counts={counts} onGuide={showGuide} guideOpen={guideOpen} />
       <div className="content-pane">
       <main className="main">
         <div className="grid-heading">
@@ -144,7 +178,7 @@ export default function App() {
             <p className={`detection-line${error ? " error" : ""}`} role="status">
               {cacheState}
               {warning}
-              {packagesStatus === "error" ? " · 部分软件包状态未确认" : ""}
+              {packagesStatus === "error" && !missingBrew ? " · 部分软件包状态未确认" : ""}
               {error ? ` · ${error}` : ""}
             </p>
             <button type="button" className="refresh-button" aria-label="刷新检测" title="刷新检测" disabled={refreshing} onClick={() => void refresh()}>
@@ -155,13 +189,8 @@ export default function App() {
             </button>
           </div>
         </div>
-        {snapshot && !snapshot.homebrew.available && (
-          <div className="setup-hint" role="status">
-            <span>安装功能需要 Homebrew。DevHub 不会静默获取管理员权限。</span>
-            <button type="button" onClick={() => void desktop("open_homebrew_site").catch(() => {})}>查看安装方法</button>
-            <button type="button" onClick={() => void refresh()}>重新检查</button>
-          </div>
-        )}
+        {guideOpen && <GettingStarted state={brewState} problem={error || snapshot?.homebrew.error || null}
+          onRefresh={() => void refresh()} onDismiss={dismissGuide} />}
         {filterNotice && <p className="detection-line" role="status">{filterNotice}</p>}
         {items.length > 0
           ? <OrbGrid items={items} installed={installedIds} installing={busyIds} sourceId={selected?.item.id ?? null} onOpen={(item, origin) => setSelected({ item, origin })} />
@@ -170,7 +199,7 @@ export default function App() {
       </div>
       </div>
       {page === "search" && <SearchPage query={query} curated={search.curated} remote={search.remote} searching={search.searching} error={search.error}
-        onQuery={setQuery} onRetry={search.retry} isInstalled={isInstalled} isBusy={item => install.task?.softwareId === item.package}
+        onQuery={setQuery} onRetry={search.retry} onSetup={missingBrew ? showGuide : undefined} isInstalled={isInstalled} isBusy={item => install.task?.softwareId === item.package}
         sourceId={selected?.item.id ?? null} onOpen={(item, origin) => setSelected({ item, origin })}/>}
       <InstallationNotice result={install.result}/>
       {selected && (
@@ -181,7 +210,9 @@ export default function App() {
           brewInstalled={Boolean(selectedBrew)}
           brewVersion={selectedBrew?.version ?? null}
           brewPath={selectedBrew?.path ?? null}
+          absenceConfirmed={absenceConfirmed}
           homebrewReady={Boolean(snapshot?.homebrew.available)}
+          onSetup={missingBrew ? showGuide : undefined}
           task={install.task && install.task.softwareId === selected.item.package ? install.task : null}
           result={install.result && install.result.softwareId === selected.item.package ? install.result : null}
           actionError={install.errorPackage === selected.item.package && install.errorKind === selected.item.kind ? install.error : null}

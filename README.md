@@ -109,7 +109,7 @@ DevHub V2 是一个 **Tauri 2 + React + Rust** 的桌面应用，用来查看和
 - 深色 / 浅色 / 自动主题；
 - 关闭窗口后保留在程序坞，点击程序坞恢复，右键退出或 ⌘Q 结束应用；
 - 安装核验成功后发送原生系统通知，并保留应用内完成提醒；
-- 铃铛菜单可开启通知、查看真实权限状态、发送测试通知及打开系统设置；
+- 左栏「使用指南」中的「安装提醒设置」可开启通知、查看权限和发送测试通知；
 - 隐藏页面滚动条，保留滚轮/触控板/键盘滚动；
 - 本地图标保留品牌颜色，未知软件使用通用图标。
 
@@ -148,25 +148,11 @@ DevHub V2 是一个 **Tauri 2 + React + Rust** 的桌面应用，用来查看和
 
 ### 直接使用 macOS 安装包
 
-当前开发构建要求 **macOS 11+、Apple Silicon（arm64）**。下面的 DMG 是历史发布产物，新界面需使用最新本地构建：
+当前构建面向 Apple Silicon Mac，应用最低系统版本为 macOS 11。仓库的「Download ZIP」提供源码。公开安装包请查看 [GitHub Releases](https://github.com/cososo888/DevHub/releases)。如果页面没有 DMG，可向提供者获取本地构建，开发者也可按下文从源码运行。
 
-[**DevHub-V2-0.1.0-aarch64.dmg**](dist/DevHub-V2-0.1.0-aarch64.dmg)
-
-SHA-256：
-
-```text
-888050f32880b04ecd2fd4026667948c0acdbb5dc594908c70606b62ec092347
-```
-
-安装：
-
-1. 打开 DMG；
-2. 将 `DevHub V2.app` 拖入 Applications；
-3. 首次打开如果被 Gatekeeper 拦截，右键应用 → **打开**。
-
-> **签名说明**：当前为本地 ad-hoc 签名，未使用 Apple Developer ID notarize。会触发 Gatekeeper/SmartScreen 提示，这是预期行为。
->
-> 安装/卸载软件仍需本机有 Homebrew。仅查看本机环境不需要 Homebrew。
+1. 打开 DMG，将 `DevHub V2.app` 拖到「应用程序」，再从那里打开。当前构建仅使用本地签名，尚未经过 Apple 公证，首次打开可能被 macOS 拦截。[Apple 的应用安全说明](https://support.apple.com/zh-cn/102445)
+2. 打开后即可浏览软件、搜索精选目录并查看检测到的本机环境。使用打包好的应用无需安装 Node.js 或 Rust。
+3. 安装、卸载和搜索 Homebrew 全库需要 Homebrew。DevHub 在常见位置未检测到它时会展示「使用指南」。按指南打开官网，核对系统要求，安装官方 `.pkg` 后返回 DevHub 点「重新检测」。指南也可从左栏随时打开。[Homebrew 官网](https://brew.sh/)
 
 ### 从源码运行
 
@@ -246,7 +232,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 │   └── tauri.windows.conf.json   Windows NSIS 规划配置
 ├── docs/                         报告、截图、Windows 交接资料
 ├── scripts/                      UI 与目录测试
-├── dist/                         预构建 macOS DMG
+├── dist/                         Vite 生成的前端资源
 └── package.json
 ```
 
@@ -257,7 +243,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 | Phase 1 | 完成 | 圆形网格、详情卡片、主题、基础检测 |
 | Phase 2 | 完成 | 真实本机检测、安装任务、进度与日志 |
 | Phase 3 | 完成 | 100 款目录、全库搜索、通用安装、安全卸载 |
-| macOS v0.1.0 | 可用 | Apple Silicon DMG |
+| macOS v0.1.0 | 可本地构建 | Apple Silicon DMG |
 | Windows 版 | **未实现** | winget provider、Windows 检测、NSIS 待开发 |
 
 ## 历史 Windows 交接资料（开发已暂停）

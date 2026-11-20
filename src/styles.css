@@ -492,8 +492,6 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 34px); letter-spacing: -1px; font-we
 .task-log { margin-top: 6px; }
 .task-log summary { cursor: pointer; color: var(--muted); font-size: 10px; }
 .task-log pre { max-height: 120px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; margin: 5px 0 0; padding: 7px; border-radius: 6px; background: color-mix(in srgb, var(--text) 5%, transparent); color: var(--muted); font-size: 9.5px; }
-.setup-hint { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); font-size: 11px; }
-.setup-hint button { border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text); padding: 3px 9px; font-size: 10px; cursor: pointer; }
 
 /* Hide the page scrollbar; scrolling remains available by wheel/trackpad/keyboard. */
 html, body, #root, .app, .main {
@@ -654,20 +652,29 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, #root::-webkit-scrollbar,
   .search-result { gap: 13px; padding: 14px; }
 }
 
-/* Notification controls expose real native permission and submission failures. */
-.notification-picker { position: relative; flex-shrink: 0; }
-.notification-menu {
-  position: absolute; top: calc(100% + 10px); right: 0; z-index: 50; width: 270px;
-  padding: 17px; border: 1px solid var(--line); border-radius: 18px;
-  background: color-mix(in srgb, var(--bg) 93%, transparent);
-  backdrop-filter: blur(24px) saturate(1.2); -webkit-backdrop-filter: blur(24px) saturate(1.2);
-  box-shadow: 0 14px 42px #0002;
+/* Setup stays inside the library so it can be consulted while browsing. */
+.installation-sidebar .guide-trigger { margin-top: 18px; }
+.getting-started {
+  scroll-margin-top: calc(var(--chrome-height) + 16px);
+  max-width: 620px; margin: 0 0 22px; padding: 18px 20px;
+  border: 1px solid var(--line); border-radius: 18px; background: var(--surface);
+  color: var(--text); font-size: 13px; line-height: 1.6;
 }
-.notification-menu > strong { font-size: 13px; font-weight: 600; }
-.notification-menu p { font-size: 12px; color: var(--muted); line-height: 1.6; margin: 9px 0 13px; overflow-wrap: anywhere; }
-.notification-menu > button { display: block; width: 100%; margin-top: 7px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); text-align: left; font-size: 12px; }
-.notification-menu > button:hover:not(:disabled) { color: var(--accent); }
-.notification-menu p.notification-feedback { font-size: 11px; margin-bottom: 0; }
+.getting-started header, .guide-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.getting-started header { justify-content: space-between; }
+.getting-started h2 { margin: 0; font-size: 17px; }
+.getting-started h3 { margin: 16px 0 4px; font-size: 13px; }
+.getting-started p, .getting-started ol { margin: 5px 0 10px; color: var(--muted); }
+.getting-started ol { padding-inline-start: 20px; }
+.getting-started button, .guide-link {
+  border: 1px solid var(--line); background: var(--surface); color: var(--text);
+  border-radius: 9px; padding: 5px 10px; font-size: 12px; cursor: pointer;
+}
+.getting-started button:hover:not(:disabled), .guide-link:hover { color: var(--accent); }
+.guide-notifications { margin-top: 14px; }
+.guide-notifications summary { width: fit-content; color: var(--muted); cursor: pointer; font-size: 12px; }
+.notification-settings button { margin: 0 6px 4px 0; }
+.notification-settings p { overflow-wrap: anywhere; }
 .completion-notice { position: fixed; right: 26px; bottom: 24px; z-index: 110; display: flex; align-items: center; gap: 13px; max-width: min(380px, calc(100vw - 36px)); padding: 13px 14px 13px 18px; border-radius: 20px; border: 1px solid var(--line); background: var(--surface-strong); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 14px 44px #10245320; }
 .completion-notice > svg { color: var(--accent); flex-shrink: 0; }
 .completion-notice > span { display: flex; flex-direction: column; gap: 4px; min-width: 0; color: var(--muted); font-size: 11px; }
