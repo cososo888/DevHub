@@ -172,6 +172,9 @@ export default function App() {
   return (
     <div className="app" data-theme={theme}>
       <div className="ambient" aria-hidden="true" />
+      <div className="workspace">
+      <InstallationSidebar value={installationFilter} onChange={setInstallationFilter} counts={counts} />
+      <div className="content-pane">
       <Toolbar
         query={query}
         onQuery={setQuery}
@@ -182,19 +185,15 @@ export default function App() {
         theme={theme}
         onTheme={setTheme}
       />
-      <div className="workspace">
-      <InstallationSidebar value={installationFilter} onChange={setInstallationFilter} counts={counts} />
       <main className="main">
         <div className="grid-heading">
-          <div>
+          <div className="heading-actions">
             <p className={`detection-line${error ? " error" : ""}`} role="status">
               {cacheState}
               {warning}
               {packagesStatus === "error" ? " · 部分软件包状态未确认" : ""}
               {error ? ` · ${error}` : ""}
             </p>
-          </div>
-          <div className="heading-actions">
             <button type="button" className="refresh-button" aria-label="刷新检测" title="刷新检测" disabled={refreshing} onClick={() => void refresh()}>
               <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" className={refreshing ? "spin" : ""}>
                 <path d="M20 11a8 8 0 1 0-2.3 5.7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -226,6 +225,7 @@ export default function App() {
           : !filterNotice && <div className="empty">{searching ? "正在搜索…" : installationFilter === "installed" ? "当前范围内没有已安装的软件。" : installationFilter === "not-installed" ? "当前检测范围内没有未安装的软件。" : "没有匹配的软件。"}</div>}
       </main>
       </div>
+      </div>
       {selected && (
         <DetailOverlay
           item={selected.item}
@@ -237,7 +237,7 @@ export default function App() {
           homebrewReady={Boolean(snapshot?.homebrew.available)}
           task={install.task && install.task.softwareId === selected.item.package ? install.task : null}
           result={install.result && install.result.softwareId === selected.item.package ? install.result : null}
-          actionError={install.error}
+          actionError={install.errorPackage === selected.item.package && install.errorKind === selected.item.kind ? install.error : null}
           onInstall={() => void install.install(selected.item.package, selected.item.kind)}
           onUninstall={() => void install.uninstall(selected.item.package, selected.item.kind)}
           onClose={() => setSelected(null)}

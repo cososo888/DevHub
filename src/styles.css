@@ -511,16 +511,17 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, #root::-webkit-scrollbar,
   display: none;
 }
 
-/* The expanded surface keeps the orb's tint, light and physical corner radius. */
+/* Share the orb's subtle tint; avoid stacking a second saturated overlay. */
 .morph-card, .morph-card.open, .morph-card.closing {
-  background: radial-gradient(ellipse at 18% 8%, color-mix(in srgb, var(--orb-accent) 30%, transparent), transparent 72%),
-    linear-gradient(140deg, color-mix(in srgb, var(--orb-surface) 88%, transparent), color-mix(in srgb, var(--orb-accent) 14%, var(--orb-surface)));
-  backdrop-filter: blur(30px) saturate(1.45);
-  -webkit-backdrop-filter: blur(30px) saturate(1.45);
-  border-color: color-mix(in srgb, var(--orb-accent) 24%, var(--line));
+  background:
+    radial-gradient(circle at 32% 22%, color-mix(in srgb, var(--orb-accent) 17%, transparent), transparent 62%),
+    linear-gradient(150deg, color-mix(in srgb, #fff 55%, var(--orb-surface)), var(--orb-surface));
+  backdrop-filter: blur(24px) saturate(1.15);
+  -webkit-backdrop-filter: blur(24px) saturate(1.15);
+  border-color: color-mix(in srgb, #fff 62%, var(--line));
   box-shadow: inset 0 1px 1px #ffffff70, var(--card-shadow);
 }
-.morph-card.open::before { opacity: .35; }
+.morph-card::before { content: none; }
 .detail-inner { padding: 34px; scroll-padding: 34px; }
 .detail-head { position: relative; }
 .description-toggle { display: inline-grid; place-items: center; width: 28px; height: 28px; margin-top: 6px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--muted); }
@@ -560,3 +561,37 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, #root::-webkit-scrollbar,
 .search-status button { border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 8px; padding: 4px 8px; }
 @media (max-width: 900px) { .workspace { grid-template-columns: 145px minmax(0, 1fr); } .installation-sidebar { padding-left: 10px; top: 120px; } }
 @media (max-width: 600px) { .workspace { grid-template-columns: 116px minmax(0, 1fr); } .installation-sidebar { padding: 24px 4px; } .installation-sidebar button { gap: 5px; padding: 10px 6px; } }
+
+
+/* The toolbar belongs to the software column, never the sidebar. */
+.content-pane { min-width: 0; }
+.content-pane > .main { min-width: 0; width: 100%; padding-top: 16px; }
+.content-pane > .topbar {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+  gap: 12px; padding: 16px clamp(18px, 3.2vw, 40px);
+  border: 0; background: transparent; isolation: isolate;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+.content-pane > .topbar::before {
+  content: ""; position: absolute; inset: 0 0 -22px; z-index: -1; pointer-events: none;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(26px) saturate(1.18); -webkit-backdrop-filter: blur(26px) saturate(1.18);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 65%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 65%, transparent 100%);
+}
+.content-pane .categories { order: 0; flex-basis: auto; justify-content: normal; }
+.content-pane .categories .chip:first-child { margin-left: auto; }
+.content-pane .categories .chip:last-child { margin-right: auto; }
+.content-pane .grid-heading { justify-content: flex-end; }
+.content-pane .heading-actions { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.content-pane .heading-actions .detection-line { margin: 0; text-align: right; }
+.content-pane .refresh-button { flex-shrink: 0; }
+.installation-sidebar { top: 24px; padding-top: 96px; }
+/* Full-viewBox brand marks need the same optical footprint as the inset hand-drawn marks. */
+.orb-circle > .brand-logo { width: 39%; height: 39%; }
+.morph-logo > .brand-logo { width: 75%; height: 75%; }
+@media (max-width: 1050px) {
+  .content-pane > .topbar { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .content-pane .toolbar-right { justify-self: end; grid-row: 1; }
+  .content-pane .categories { grid-row: 2; width: 100%; }
+}

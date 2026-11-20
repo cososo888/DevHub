@@ -81,7 +81,7 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, hom
         <div className="detail-heading-line">
           <h2>{item.name}</h2>
           {description && <button type="button" className="description-toggle" aria-label="详细介绍" aria-expanded={expanded} aria-controls={introductionId} onClick={() => onExpanded(!expanded)}>
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 4v10M12 18v1" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9" strokeWidth="1.5"/><path d="M12 7v6M12 16v.5" strokeWidth="2" strokeLinecap="round"/></svg>
           </button>}
         </div>
         <p>{item.description}</p>

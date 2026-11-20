@@ -101,11 +101,6 @@ fn installed_versions_args(package: &str, kind: &str) -> Vec<String> {
     }
 }
 
-fn is_not_installed_text(text: &str) -> bool {
-    let lower = text.to_lowercase();
-    lower.contains("not installed") || lower.contains("no such keg") || lower.contains("no installed keg")
-}
-
 /// Parse a multi-formula JSON response and select the exact requested formula.
 /// Never takes the first formula: `brew info --installed` can return several.
 fn formula_installed_from_json(text: &str, package: &str) -> Result<bool, String> {
@@ -116,57 +111,90 @@ fn formula_installed_from_json(text: &str, package: &str) -> Result<bool, String
         let name = formula.get("name").and_then(|value| value.as_str());
         let full_name = formula.get("full_name").and_then(|value| value.as_str());
         if name != Some(package) && full_name != Some(package) { continue; }
-        let installed = formula.get("installed").and_then(|value| value.as_array())
-            .map(|values| !values.is_empty())
-            .or_else(|| formula.get("linked_keg").and_then(|value| value.as_str()).map(|value| !value.is_empty()))
-            .unwrap_or(false);
-        return Ok(installed);
+        return match formula.get("installed") {
+            Some(serde_json::Value::Array(installed)) if installed.iter().all(serde_json::Value::is_object) => Ok(!installed.is_empty()),
+            Some(_) => Err("Homebrew formula 的 installed 字段格式不正确".into()),
+            None => match formula.get("linked_keg") {
+                Some(serde_json::Value::String(version)) => Ok(!version.trim().is_empty()),
+                _ => Err("Homebrew formula 缺少可确认的安装状态".into()),
+            },
+        };
     }
     Err(format!("Homebrew JSON 中没有精确匹配的 formula：{package}"))
 }
 
-fn fallback_formula_json(brew: &Brew, package: &str) -> Result<bool, String> {
+/// Accept explicit cask version strings, null, or arrays of version strings.
+/// Unknown or missing fields are query errors, never evidence of absence.
+fn cask_installed_from_json(text: &str, package: &str) -> Result<bool, String> {
+    let value: serde_json::Value = serde_json::from_str(text).map_err(|error| format!("Homebrew JSON 无法解析：{error}"))?;
+    let casks = value.get("casks").and_then(serde_json::Value::as_array)
+        .ok_or_else(|| "Homebrew 没有返回 casks 数组".to_string())?;
+    for cask in casks {
+        let token = cask.get("token").and_then(serde_json::Value::as_str);
+        let full_token = cask.get("full_token").and_then(serde_json::Value::as_str);
+        if token != Some(package) && full_token != Some(package) { continue; }
+        return match cask.get("installed") {
+            Some(serde_json::Value::Null) => Ok(false),
+            Some(serde_json::Value::String(version)) if !version.trim().is_empty() => Ok(true),
+            Some(serde_json::Value::Array(versions)) if versions.iter().all(|version| version.as_str().is_some_and(|s| !s.trim().is_empty())) => Ok(!versions.is_empty()),
+            _ => Err("Homebrew cask 缺少可确认的安装状态".into()),
+        };
+    }
+    Err(format!("Homebrew JSON 中没有精确匹配的 cask：{package}"))
+}
+
+fn query_failure(context: &str, output: &process::Output) -> String {
+    let details = format!("{}\n{}", output.stdout, output.stderr).trim().to_string();
+    if details.is_empty() {
+        format!("{context}（退出码 {}，Homebrew 未返回错误详情）", output.status)
+    } else {
+        format!("{context}（退出码 {}）\n{details}", output.status)
+    }
+}
+
+fn fallback_package_json(brew: &Brew, package: &str, kind: &str) -> Result<bool, String> {
     let output = process::run_with_env(
         &brew.path,
-        &["info", "--json=v2", "--formula", package],
+        &["info", "--json=v2", list_flag(kind), package],
         INFO_TIMEOUT,
         OUTPUT_LIMIT,
         ENV,
     )?;
     if output.status != 0 {
-        return Err(format!("Homebrew 状态查询失败：{}", output.stderr.trim()));
+        return Err(query_failure("Homebrew 安装状态 JSON 查询失败", &output));
     }
-    formula_installed_from_json(&output.stdout, package)
+    if kind == "cask" {
+        cask_installed_from_json(&output.stdout, package)
+    } else {
+        formula_installed_from_json(&output.stdout, package)
+    }
 }
 
-/// Checks the exact installed package, not merely a process exit code.
-/// The fallback is deliberately JSON-based and matches the exact formula name.
+/// Homebrew may return exit 1 and no text for an uninstalled package.
+/// Both formula and cask need an exact JSON recheck; a nonzero code alone proves nothing.
 pub fn package_installed(package: &str, kind: &str) -> Result<bool, String> {
     if !valid_kind(kind) || !valid_package(package) { return Err("无效的 Homebrew 包标识".into()); }
     let brew = probe()?;
     let args_owned = installed_versions_args(package, kind);
     let args = args_owned.iter().map(String::as_str).collect::<Vec<_>>();
-    match process::run_with_env(&brew.path, &args, LIST_TIMEOUT, 256 * 1024, ENV) {
-        Ok(output) if output.status == 0 => {
-            let found = output.stdout.lines().any(|line| line.split_whitespace().next() == Some(package));
-            if found { return Ok(true); }
-            // A zero exit with no exact matching package: confirm via JSON for formula.
-            if kind == "formula" { return fallback_formula_json(&brew, package); }
-            Ok(false)
-        }
-        Ok(output) if is_not_installed_text(&format!("{}\n{}", output.stdout, output.stderr)) => Ok(false),
-        Ok(_) => {
-            if kind == "formula" { fallback_formula_json(&brew, package) }
-            else { Err("Homebrew 状态查询返回非零状态".into()) }
-        }
-        Err(primary_error) => {
-            if kind == "formula" {
-                fallback_formula_json(&brew, package).map_err(|fallback| format!("{primary_error}; {fallback}"))
+    let primary = process::run_with_env(&brew.path, &args, LIST_TIMEOUT, 256 * 1024, ENV);
+    let primary_message = match primary {
+        Ok(output) => {
+            let found = output.stdout.lines().any(|line| {
+                let mut parts = line.split_whitespace();
+                parts.next() == Some(package) && parts.next().is_some()
+            });
+            if output.status == 0 && found { return Ok(true); }
+            if output.status == 0 {
+                "Homebrew 版本列表没有精确匹配的安装记录".to_string()
             } else {
-                Err(primary_error)
+                query_failure("Homebrew 版本列表查询未确认安装状态", &output)
             }
         }
-    }
+        Err(error) => format!("Homebrew 版本列表查询失败：{error}"),
+    };
+    fallback_package_json(&brew, package, kind)
+        .map_err(|fallback| format!("{primary_message}\n\n[安装状态 JSON 复核]\n{fallback}"))
 }
 
 /// Verification after an installer can race Homebrew's state write.

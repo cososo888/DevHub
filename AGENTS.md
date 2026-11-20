@@ -11,3 +11,5 @@
 - Do not run real host software installs/uninstalls, edit PATH/Shell/system configuration or delete user data without separate explicit authorization. No remote push without user instruction.
 
 - Software introductions open only on explicit click, never hover or focus. Keep the summary and trigger stable during disclosure; detailed text includes concrete purpose and actual use conditions, not package-manager boilerplate.
+
+- Scope operation errors to the exact software/package kind that produced them; never show one software's failure in another detail card.

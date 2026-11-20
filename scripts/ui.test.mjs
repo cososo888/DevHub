@@ -370,7 +370,7 @@ test("detail keeps the source radius and toggles introduction only on click with
   assert.equal(screen.queryByRole("region", { name: "软件详细介绍" }), null);
   info.focus();
   assert.equal(screen.queryByRole("region", { name: "软件详细介绍" }), null);
-  assert.equal(info.querySelector("circle"), null);
+  assert.equal(info.querySelectorAll("circle").length, 1);
   assert.ok(dialog.querySelector(".detail-head").textContent.includes(item.description));
   await user.click(info);
   await user.unhover(info);

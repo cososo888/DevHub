@@ -4,6 +4,16 @@ All notable changes to DevHub V2 are documented here.
 
 ## [Unreleased]
 
+### Package-state errors and softer chrome
+
+- Treat empty nonzero Homebrew version queries as inconclusive and recheck exact formula/cask JSON, rather than blocking uninstalled casks with a generic error.
+- Keep raw query diagnostics when rechecking fails; bind action errors to the package and kind that produced them.
+- Use a single circled exclamation glyph without an outer button ring.
+- Keep the centered glass toolbar within the software column, with a blurred fading lower edge instead of a divider.
+- Match detail surfaces to the orb's pale tint, normalize new brand artwork to the original logos' optical size, and place detection metadata directly left of refresh.
+- This update is handed off for user testing; no automated or native UI tests and no real software installation/uninstallation were performed.
+
+
 ### Stable introductions and installation filters
 
 - Make the plain exclamation disclosure click-only and keep the summary visible, preventing the hover/resize loop.
