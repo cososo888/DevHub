@@ -10,7 +10,7 @@ This document is for contributors who want to run, modify or build DevHub V2 loc
 - Xcode Command Line Tools
 - Homebrew (only for install/uninstall actions; view-only detection works without it)
 
-Windows development is not ready yet. See `docs/WINDOWS-PORT-REPORT.md` and `docs/WINDOWS-TEAMMATE-GUIDE.md`.
+Windows development is paused and outside the current scope. Focus on macOS reliability and usability. Historical handoff material follows. See `docs/WINDOWS-PORT-REPORT.md` and `docs/WINDOWS-TEAMMATE-GUIDE.md`.
 
 ## Setup
 

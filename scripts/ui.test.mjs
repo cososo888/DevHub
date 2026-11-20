@@ -275,7 +275,7 @@ test("failed install exposes a short reason and technical log", async () => {
   const result = { jobId: 1, softwareId: "go", version: "go", action: "install", success: false, message: "安装失败：网络不可用", output: "brew stderr detail", verification: null };
   render(React.createElement(DetailOverlay, { item, origin: { left: 10, top: 10, width: 90, height: 90 }, onClose: () => {}, instances: [], homebrewReady: true, result }));
   const dialog = await screen.findByRole("dialog", { name: "Go 详情" });
-  assert.match(dialog.textContent, /安装失败：网络不可用/);
+  assert.match(dialog.textContent, /下载或网络连接出现问题/);
   assert.ok(dialog.querySelector(".task-log pre"));
   assert.match(dialog.querySelector(".task-log pre").textContent, /brew stderr detail/);
 });
@@ -340,4 +340,15 @@ test("changing the search hides previous remote results before the next request 
     window.__TAURI_INTERNALS__ = previous;
     window.__TAURI_EVENT_PLUGIN_INTERNALS__ = previousEvents;
   }
+});
+
+
+test("failure guidance distinguishes verification from network errors and preserves cautious advice", async () => {
+  const { failureFeedback } = await import("../src/lib/taskFeedback.ts");
+  assert.match(failureFeedback("安装命令结束，但无法确认 Homebrew 状态", "curl: failed").summary, /尚未确认/);
+  assert.match(failureFeedback("failed", "SHA256 checksum mismatch").summary, /校验/);
+  assert.match(failureFeedback("failed", "Permission denied").summary, /权限/);
+  assert.match(failureFeedback("failed", "curl: (6) Could not resolve host").summary, /网络/);
+  assert.match(failureFeedback("检测命令执行超时").advice, /并不保证/);
+  assert.equal(failureFeedback("private ".repeat(100)).summary.includes("private"), false);
 });

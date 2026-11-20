@@ -174,7 +174,7 @@ fn open_homebrew_site() -> Result<(), String> {
 
 fn service_note(package: &str) -> &'static str {
     match package {
-        "mysql" | "postgresql@17" | "redis" => "软件包已安装；数据库/缓存服务尚未自动启动",
+        "mysql" | "postgresql@17" | "redis" | "memcached" => "软件包已安装；数据库/缓存服务尚未自动启动",
         _ => "安装完成，正在刷新本机环境",
     }
 }
@@ -202,7 +202,7 @@ fn start_package_install(app: AppHandle, state: State<AppState>, package: String
             Ok(value) => value,
             Err(error) => {
                 let _ = detect_now(&app, &state);
-                emit_finished(&app, job_id, &package, &package, "install", false, &format!("安装失败：{error}"), &error, None);
+                emit_finished(&app, job_id, &package, &package, "install", false, "安装命令未完成，请查看技术日志", &error, None);
                 return;
             }
         };
@@ -211,7 +211,7 @@ fn start_package_install(app: AppHandle, state: State<AppState>, package: String
         let package_present = match homebrew::package_installed_verified(&package, &kind) {
             Ok(value) => value,
             Err(error) => {
-                emit_finished(&app, job_id, &package, &package, "install", false, &format!("安装命令结束，但无法确认 Homebrew 状态：{error}"), &output, None);
+                emit_finished(&app, job_id, &package, &package, "install", false, "安装命令结束，但无法确认 Homebrew 状态", &format!("{output}\n\n[安装结果验证]\n{error}"), None);
                 return;
             }
         };
@@ -220,7 +220,7 @@ fn start_package_install(app: AppHandle, state: State<AppState>, package: String
             return;
         }
         let found = snapshot.instances.iter().find(|item| item.software_id == package || item.path.contains(&package));
-        let message = if found.is_some() { service_note(&package) } else { "Homebrew 包已安装；当前未检测到可执行入口，可能需要重新打开终端" };
+        let message = if found.is_some() || matches!(package.as_str(), "mysql" | "postgresql@17" | "redis" | "memcached") { service_note(&package) } else { "Homebrew 已确认软件包安装成功；可刷新查看版本和包路径" };
         emit_finished(&app, job_id, &package, &package, "install", true, message, &output, Some(Verification { verified: true, instance_path: found.map(|item| item.path.clone()), version: found.and_then(|item| item.version.clone()), health: found.map(|item| item.health.clone()), system_git_available: None }));
     });
     Ok(job_id)

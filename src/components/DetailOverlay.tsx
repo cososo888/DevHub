@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import type { Software } from "../catalog";
 import { useReducedMotion } from "../hooks/useReducedMotion";
 import type { InstallFinished, InstallProgress, SoftwareInstance } from "../lib/ipc";
+import { failureFeedback } from "../lib/taskFeedback";
 import { SoftwareLogo } from "./SoftwareLogo";
 
 export interface OrbOrigin {
@@ -68,6 +69,7 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, hom
   const uninstallCommand = item.kind === "cask" ? `brew uninstall --cask ${packageName}` : `brew uninstall ${packageName}`;
   const showBrewLine = brewInstalled && !instances.some(instance => instance.path.includes("/Cellar/") || instance.path.includes("/Caskroom/") || instance.path.includes("/opt/homebrew/"));
   const log = result?.output || actionError || "";
+  const feedback = result && !result.success ? failureFeedback(result.message, log) : actionError ? failureFeedback(actionError) : null;
   return (
     <div className="detail-inner" tabIndex={interactive ? 0 : undefined} role={interactive ? "region" : undefined} aria-label={interactive ? `${item.name} 详情内容` : undefined}>
       <header className="detail-head">
@@ -124,13 +126,16 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, hom
       {task && (
         <div className="row-progress" role="status">
           <span className="mini-spinner" />
+          <strong>{task.stage === "verifying" ? "正在验证结果" : task.stage === "starting" ? "正在检查并提交" : task.action === "uninstall" ? "正在卸载" : "正在安装"}</strong>
           <span>{task.message}</span>
+          <small>此进度没有百分比；关闭详情后任务仍会继续。</small>
           <div className="indeterminate" />
         </div>
       )}
       {result && (
         <div className={result.success ? "row-result" : "row-error"}>
-          <span>{result.message}</span>
+          <span>{feedback?.summary ?? result.message}</span>
+          {feedback && <p>{feedback.advice}</p>}
           {log && (
             <details className="task-log">
               <summary>技术日志</summary>
@@ -141,7 +146,8 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, hom
       )}
       {!result && actionError && (
         <div className="row-error">
-          <span>{actionError}</span>
+          <span>{feedback?.summary ?? actionError}</span>
+          {feedback && <p>{feedback.advice}</p>}
           <details className="task-log"><summary>技术日志</summary><pre>{actionError}</pre></details>
         </div>
       )}

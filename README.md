@@ -30,7 +30,7 @@ DevHub V2 是一个 **Tauri 2 + React + Rust** 的桌面应用，用来查看和
 
 它不维护自己的安装器，也不提供版本选择器。点击安装时，DevHub 只执行预先定义、经过审核的 **Homebrew** 命令；具体安装版本由 Homebrew 决定。
 
-> **当前状态：macOS v0.1.0 可用。Windows 版尚未实现，只有交接文档和候选目录。**
+> **当前仅开发和维护 macOS 版，优先修复安装可靠性与界面体验。Windows 开发已暂停；原交接资料仅保留作历史参考。**
 
 核心原则：
 
@@ -256,7 +256,9 @@ cargo test --manifest-path src-tauri/Cargo.toml
 | macOS v0.1.0 | 可用 | Apple Silicon DMG |
 | Windows 版 | **未实现** | winget provider、Windows 检测、NSIS 待开发 |
 
-## Windows 支持计划
+## 历史 Windows 交接资料（开发已暂停）
+
+当前开发范围只有 macOS。以下资料不代表正在推进的计划，不要据此启动 Windows 适配。
 
 Windows 版只做：
 

@@ -4,6 +4,15 @@ All notable changes to DevHub V2 are documented here.
 
 ## [Unreleased]
 
+### macOS reliability and usability
+
+- Focus current development on macOS; pause the Windows plan and retain its documents as historical references.
+- Hide stale remote results when search keywords change; add a clear-search action and explain category behavior.
+- Separate readable failure guidance from technical logs; preserve post-install verification errors.
+- Show task stages without fabricated percentages and clarify that Memcached services are not auto-started.
+- These changes do not constitute a real Memcached installation/uninstallation acceptance test.
+
+
 ### Added
 
 - Windows handoff documentation, winget candidate list and NSIS configuration.
