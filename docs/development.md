@@ -5,7 +5,7 @@ This document is for contributors who want to run, modify or build DevHub V2 loc
 ## Requirements
 
 - macOS (the shipped build is Apple Silicon)
-- Node.js 20+
+- Node.js 24.15+ (24.x) or 26+
 - Rust stable
 - Xcode Command Line Tools
 - Homebrew (only for install/uninstall actions; view-only detection works without it)
@@ -43,7 +43,7 @@ The Tauri dev URL is `http://localhost:1421`.
 | `npm run check` | TypeScript type check |
 | `npm run build` | Frontend production build |
 | `npm run test:ui` | UI/component tests |
-| `npm run tauri -- build --bundles dmg` | macOS DMG |
+| `npm run package:macos` | macOS DMG |
 | `cargo test --manifest-path src-tauri/Cargo.toml` | Rust tests |
 
 ## Architecture
@@ -66,16 +66,16 @@ The macOS app currently uses Homebrew as the package provider. Windows will use 
 ## Packaging
 
 ```bash
-npm run tauri -- build --bundles dmg
+npm run package:macos
 ```
 
 Output:
 
 ```text
-src-tauri/target/release/bundle/dmg/DevHub V2_0.1.0_aarch64.dmg
+src-tauri/target/release/distribution/<version>/
 ```
 
-The local build is ad-hoc signed and not notarized. SmartScreen/Gatekeeper warnings are expected.
+The packaging command verifies the disk image, checks the app signature, version and ARM64 architecture inside the mounted image, and writes a DMG and SHA256SUMS.txt. Publish both files on the release tag for the same commit. The current local signature has no Apple notarization ticket.
 
 ## Windows
 

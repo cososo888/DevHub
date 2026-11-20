@@ -149,7 +149,7 @@ export default function App() {
   const selectedBrew = selected ? brewMap.get(packageKey(selected.item.kind, selected.item.package)) ?? null : null;
   const busyIds = useMemo(() => {
     if (!install.task) return new Set<string>();
-    return new Set(items.filter(item => item.package === install.task?.softwareId).map(item => item.id));
+    return new Set(items.filter(item => item.package === install.task?.softwareId && item.kind === install.task.kind).map(item => item.id));
   }, [install.task, items]);
   const instanceCount = snapshot?.instances?.length ?? 0;
   const cacheState = !snapshot
@@ -199,7 +199,7 @@ export default function App() {
       </div>
       </div>
       {page === "search" && <SearchPage query={query} curated={search.curated} remote={search.remote} searching={search.searching} error={search.error}
-        onQuery={setQuery} onRetry={search.retry} onSetup={missingBrew ? showGuide : undefined} isInstalled={isInstalled} isBusy={item => install.task?.softwareId === item.package}
+        onQuery={setQuery} onRetry={search.retry} onSetup={missingBrew ? showGuide : undefined} isInstalled={isInstalled} isBusy={item => install.task?.softwareId === item.package && install.task.kind === item.kind}
         sourceId={selected?.item.id ?? null} onOpen={(item, origin) => setSelected({ item, origin })}/>}
       <InstallationNotice result={install.result}/>
       {selected && (
@@ -213,8 +213,8 @@ export default function App() {
           absenceConfirmed={absenceConfirmed}
           homebrewReady={Boolean(snapshot?.homebrew.available)}
           onSetup={missingBrew ? showGuide : undefined}
-          task={install.task && install.task.softwareId === selected.item.package ? install.task : null}
-          result={install.result && install.result.softwareId === selected.item.package ? install.result : null}
+          task={install.task && install.task.softwareId === selected.item.package && install.task.kind === selected.item.kind ? install.task : null}
+          result={install.result && install.result.softwareId === selected.item.package && install.result.kind === selected.item.kind ? install.result : null}
           actionError={install.errorPackage === selected.item.package && install.errorKind === selected.item.kind ? install.error : null}
           onInstall={() => void install.install(selected.item.package, selected.item.kind)}
           onUninstall={() => void install.uninstall(selected.item.package, selected.item.kind)}

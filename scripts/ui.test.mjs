@@ -197,7 +197,7 @@ test("install requires confirmation and shows the fixed brew command", async () 
   const dialog = await screen.findByRole("dialog", { name: "Go 详情" });
   await userEvent.setup().click(screen.getByRole("button", { name: "安装 Go" }));
   assert.match(dialog.textContent, /安装 Go？/);
-  assert.match(dialog.textContent, /brew install go/);
+  assert.match(dialog.textContent, /brew install --formula go/);
   assert.equal(installed, 0);
   await userEvent.setup().click(screen.getByRole("button", { name: "确认" }));
   assert.equal(installed, 1);
@@ -213,7 +213,7 @@ test("Homebrew-managed package can be uninstalled only after confirmation", asyn
   assert.match(dialog.textContent, /\/opt\/homebrew\/opt\/go/);
   await userEvent.setup().click(screen.getByRole("button", { name: "卸载 Go" }));
   assert.match(dialog.textContent, /卸载 Go？/);
-  assert.match(dialog.textContent, /brew uninstall go/);
+  assert.match(dialog.textContent, /brew uninstall --formula go/);
   assert.equal(uninstalled, 0);
   await userEvent.setup().click(screen.getByRole("button", { name: "确认" }));
   assert.equal(uninstalled, 1);
@@ -237,7 +237,7 @@ test("non-Homebrew install allows a duplicate Homebrew install with a warning", 
   const dialog = await screen.findByRole("dialog", { name: "Git 详情" });
   await userEvent.setup().click(screen.getByRole("button", { name: "安装 Git" }));
   assert.match(dialog.textContent, /已有其他来源的安装/);
-  assert.match(dialog.textContent, /brew install git/);
+  assert.match(dialog.textContent, /brew install --formula git/);
 });
 
 test("install without Homebrew is disabled and explains the prerequisite", async () => {

@@ -11,7 +11,6 @@
 <p align="center">
   <a href="https://github.com/cososo888/DevHub"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-cososo888%2FDevHub-181717?logo=github&logoColor=white" /></a>
   <img alt="macOS" src="https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-000000?logo=apple&logoColor=white" />
-  <img alt="Windows" src="https://img.shields.io/badge/Windows-planned-8B95A7" />
   <img alt="Tauri" src="https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white" />
   <img alt="React" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111111" />
   <img alt="Rust" src="https://img.shields.io/badge/Rust-stable-CE422B?logo=rust&logoColor=white" />
@@ -20,7 +19,7 @@
 
 ---
 
-[中文 README](README.md)
+[**Download for Mac · Apple Silicon**](https://github.com/cososo888/DevHub/releases/download/v0.2.0/DevHub-V2-0.2.0-macOS-arm64.dmg) · [Release notes and SHA-256](https://github.com/cososo888/DevHub/releases/tag/v0.2.0) · [中文 README](README.md)
 
 ## Overview
 
@@ -28,7 +27,7 @@ DevHub V2 is a **Tauri 2 + React + Rust** desktop app for viewing and managing a
 
 It does not maintain its own installer and does not provide a version picker. When the user clicks Install, DevHub runs a reviewed **Homebrew** command. The installed version is whatever Homebrew selects.
 
-> **Status:** macOS v0.1.0 is usable. Windows support is not implemented yet; the repository contains a handoff plan and candidate package list only.
+> The maintained release targets Apple Silicon Macs.
 
 Principles:
 
@@ -62,7 +61,7 @@ Every package name is verified against Homebrew; no invented package names.
 - **Homebrew full-library search** via `brew search` followed by a batched `brew info`.
 - Case-insensitive.
 - When a query is present, category filters are ignored; clearing the query restores the selected category.
-- 320 ms debounce, session cache and a 5-minute backend cache.
+- 250 ms debounce, session cache and a 5-minute backend cache.
 - Up to 12 results per type, deduplicated and capped at 24 total.
 - Loading, empty and retry states.
 - Search results open the same circular detail card.
@@ -71,18 +70,18 @@ Every package name is verified against Homebrew; no invented package names.
 
 - Deep detection for the original 14 tools: version, actual path, multiple instances and source.
 - Generic Homebrew package state for the rest of the catalog.
-- One Homebrew state query at startup/refresh, not one command per package.
+- Batch reads of Homebrew package state on startup and refresh.
 - Existing system, official, Homebrew, fnm, uv and rustup installs remain visible.
-- Software not installed by DevHub is not reported as uninstalled.
+- Unknown package state is reported separately.
 
 ### Install and uninstall
 
 - No version picker.
 - Fixed commands:
   ```text
-  brew install <package>
+  brew install --formula <package>
   brew install --cask <package>
-  brew uninstall <package>
+  brew uninstall --formula <package>
   brew uninstall --cask <package>
   ```
 - Explicit confirmation before execution.
@@ -96,12 +95,12 @@ Every package name is verified against Homebrew; no invented package names.
 ### Interface
 
 - Circular software grid.
-- Blue installed / gray not-installed state.
+- Verified installations have a blue halo.
 - Shared morph detail card.
 - Installing ring and indeterminate progress animation.
-- Light and dark themes.
+- Light, dark and automatic appearance. Close the window to keep the app in the Dock. Verified installs can send native notifications.
 - Hidden page scrollbar while preserving wheel, trackpad and keyboard scrolling.
-- Default initial-based icon for packages without an official logo.
+- Color brand icons with category artwork for additional tools.
 
 ## Screenshots
 
@@ -138,7 +137,7 @@ Every package name is verified against Homebrew; no invented package names.
 
 ### Prebuilt macOS DMG
 
-The current build targets Apple Silicon and has a minimum deployment target of macOS 11. GitHub’s “Download ZIP” contains source code. Check [GitHub Releases](https://github.com/cososo888/DevHub/releases) for a public DMG. If none is listed, obtain a local build from the distributor or follow the source instructions below.
+The deployment target is macOS 11 or later on Apple Silicon. The release includes the DMG and a SHA-256 checksum. [Download v0.2.0](https://github.com/cososo888/DevHub/releases/download/v0.2.0/DevHub-V2-0.2.0-macOS-arm64.dmg)
 
 1. Open the DMG, drag `DevHub V2.app` into Applications and launch it there. The current build is ad-hoc signed and has not been notarized. macOS may block the first launch. [Apple’s guide to opening downloaded apps](https://support.apple.com/en-us/102445)
 2. Browse the catalog, search curated software and view detected tools immediately. The packaged app runs without Node.js or Rust.
@@ -149,7 +148,7 @@ The current build targets Apple Silicon and has a minimum deployment target of m
 Requirements:
 
 - macOS Apple Silicon
-- Node.js 20+
+- Node.js 24.15+ (24.x) / 26+
 - Rust stable
 - Xcode Command Line Tools
 - Homebrew for install/uninstall actions
@@ -164,13 +163,13 @@ npm run tauri -- dev
 ### Build the macOS DMG
 
 ```bash
-npm run tauri -- build --bundles dmg
+npm run package:macos
 ```
 
 Output:
 
 ```text
-src-tauri/target/release/bundle/dmg/DevHub V2_0.1.0_aarch64.dmg
+src-tauri/target/release/distribution/0.2.0/
 ```
 
 ## Development
@@ -181,19 +180,12 @@ npm run test:ui
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-Baseline:
-
-- UI: 19 passed
-- Rust: 11 passed / 3 ignored
-- TypeScript: passing
-- macOS release DMG: builds
-
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Vite frontend only |
 | `npm run tauri -- dev` | Full Tauri app |
 | `npm run build` | Frontend production build |
-| `npm run tauri -- build --bundles dmg` | Build DMG |
+| `npm run package:macos` | Build DMG |
 | `npm run test:ui` | UI/component tests |
 | `npm run check` | TypeScript check |
 | `cargo test --manifest-path src-tauri/Cargo.toml` | Rust tests |
@@ -209,36 +201,9 @@ dist/                        Generated Vite frontend assets
 .github/                     CI, release workflow, issue/PR templates
 ```
 
-## Status
+## Version history
 
-| Phase | Status | Scope |
-| --- | --- | --- |
-| Phase 1 | Done | Grid, detail card, themes, initial detection |
-| Phase 2 | Done | Real local detection, install task, progress/logs |
-| Phase 3 | Done | 100 packages, full-library search, safe install/uninstall |
-| macOS v0.1.0 | Local build | Apple Silicon DMG |
-| Windows | **Not implemented** | winget provider, Windows detection, NSIS |
-
-## Windows plan
-
-Windows support is planned as:
-
-- Windows 10/11 **x64**
-- **winget** only (no msstore, Chocolatey or Scoop)
-- No version picker
-- NSIS installer
-- Unsigned, with UAC and SmartScreen warnings
-
-Existing material:
-
-- `docs/WINDOWS-PORT-REPORT.md`
-- `docs/WINDOWS-TEAMMATE-GUIDE.md`
-- `docs/windows/WINDOWS-HANDOFF.md`
-- `docs/windows/winget-candidates.json` (**100 candidates, not verified**)
-- `docs/windows/verify-winget.ps1`
-- `src-tauri/tauri.windows.conf.json`
-
-Windows code is not implemented. The current source cannot build a Windows installer, and the winget IDs must be verified on Windows before they become a final catalog.
+See the [changelog](CHANGELOG.md) for macOS releases. The historical Windows handoff is archived in [docs/windows](docs/windows).
 
 ## Known limitations
 

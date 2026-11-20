@@ -1,13 +1,14 @@
 {
   "name": "devhub-v2",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "package:macos": "bash scripts/package-macos.sh",
     "test:ui": "node --test scripts/*.test.mjs",
     "check": "tsc --noEmit"
   },

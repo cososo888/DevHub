@@ -2,7 +2,14 @@
 
 All notable changes to DevHub V2 are documented here.
 
-## [Unreleased]
+## [0.2.0] - 2026-11-20
+
+### macOS release
+
+- Ship the Apple Silicon DMG with a SHA-256 checksum and a bilingual download guide.
+- Open the first-use guide when Homebrew is missing. Installation reminder settings are available in the guide.
+- Run package queries off the window thread, distinguish lookup failures from empty searches, and keep installation progress and receipts tied to the exact package and kind.
+- Restrict version probes to known installation roots and check symbolic link destinations before running a tool.
 
 ### Independent search, blue halos and native notifications
 

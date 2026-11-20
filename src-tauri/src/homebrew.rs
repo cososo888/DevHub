@@ -79,8 +79,12 @@ fn run(brew: &Brew, args: &[&str], timeout: Duration) -> Result<String, String> 
 
 fn valid_kind(kind: &str) -> bool { kind == "formula" || kind == "cask" }
 fn valid_package(package: &str) -> bool {
-    !package.is_empty() && package.len() <= 128
-        && package.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '@' | '+' | '_' | '-' | '/'))
+    let valid_part = |part: &str| {
+        part.as_bytes().first().is_some_and(u8::is_ascii_alphanumeric)
+            && part.bytes().all(|c| c.is_ascii_alphanumeric() || matches!(c, b'.' | b'@' | b'+' | b'_' | b'-'))
+    };
+    package.len() <= 128 && matches!(package.split('/').count(), 1 | 3)
+        && package.split('/').all(valid_part)
 }
 
 fn list_flag(kind: &str) -> &'static str { if kind == "cask" { "--cask" } else { "--formula" } }
@@ -379,20 +383,12 @@ pub fn package_installed_verified(package: &str, kind: &str) -> Result<bool, Str
     }
 }
 
-pub fn package_exists(package: &str, kind: &str) -> Result<bool, String> {
-    if !valid_kind(kind) || !valid_package(package) { return Err("无效的 Homebrew 包标识".into()); }
-    let brew = probe()?;
-    let output = process::run_with_env(&brew.path, &["info", "--json=v2", list_flag(kind), package], INFO_TIMEOUT, OUTPUT_LIMIT, ENV)?;
-    Ok(output.status == 0 && output.stdout.trim().starts_with('{'))
-}
-
 pub fn install_package(package: &str, kind: &str) -> Result<String, String> {
     if !valid_kind(kind) || !valid_package(package) { return Err("无效的 Homebrew 包标识".into()); }
-    if !package_exists(package, kind)? { return Err("Homebrew 中找不到该软件包".into()); }
     if package_installed(package, kind)? { return Err("Homebrew 已经安装该软件包".into()); }
     check_installation_target(package, kind)?;
     let brew = probe()?;
-    let args = if kind == "cask" { vec!["install", "--cask", package] } else { vec!["install", package] };
+    let args = if kind == "cask" { vec!["install", "--cask", package] } else { vec!["install", "--formula", package] };
     run(&brew, &args, INSTALL_TIMEOUT)
 }
 
@@ -400,16 +396,22 @@ pub fn uninstall_package(package: &str, kind: &str) -> Result<String, String> {
     if !valid_kind(kind) || !valid_package(package) { return Err("无效的 Homebrew 包标识".into()); }
     if !package_installed(package, kind)? { return Err("Homebrew 当前没有安装该软件包".into()); }
     let brew = probe()?;
-    let args = if kind == "cask" { vec!["uninstall", "--cask", package] } else { vec!["uninstall", package] };
+    let args = if kind == "cask" { vec!["uninstall", "--cask", package] } else { vec!["uninstall", "--formula", package] };
     run(&brew, &args, UNINSTALL_TIMEOUT)
 }
 
 static SEARCH_CACHE: OnceLock<Mutex<std::collections::HashMap<String, (Instant, Vec<HomebrewResult>)>>> = OnceLock::new();
 
-fn search_names(brew: &Brew, kind: &str, query: &str) -> Vec<String> {
+fn search_names(brew: &Brew, kind: &str, query: &str) -> Result<Vec<String>, String> {
     let args = if kind == "cask" { vec!["search", "--cask", query] } else { vec!["search", "--formula", query] };
-    let Ok(output) = process::run_with_env(&brew.path, &args, INFO_TIMEOUT, 2 * 1024 * 1024, ENV) else { return Vec::new() };
-    if output.status != 0 && output.stdout.trim().is_empty() { return Vec::new(); }
+    let output = process::run_with_env(&brew.path, &args, INFO_TIMEOUT, 2 * 1024 * 1024, ENV)?;
+    if output.status != 0 {
+        let expected = format!("Error: No formulae or casks found for \"{query}\".");
+        if output.stdout.trim().is_empty() && output.stderr.trim() == expected {
+            return Ok(Vec::new());
+        }
+        return Err(query_failure("Homebrew 搜索未完成", &output));
+    }
     let mut names = output.stdout.lines()
         .map(str::trim)
         .filter(|line| !line.is_empty() && !line.starts_with("==>"))
@@ -418,7 +420,7 @@ fn search_names(brew: &Brew, kind: &str, query: &str) -> Vec<String> {
         .collect::<Vec<_>>();
     names.sort();
     names.dedup();
-    names.into_iter().take(12).collect()
+    Ok(names.into_iter().take(12).collect())
 }
 
 fn info_results(brew: &Brew, kind: &str, names: &[String]) -> Vec<HomebrewResult> {
@@ -455,7 +457,7 @@ fn info_results(brew: &Brew, kind: &str, names: &[String]) -> Vec<HomebrewResult
 
 pub fn search(query: &str) -> Result<Vec<HomebrewResult>, String> {
     let query = query.trim().to_lowercase();
-    if query.len() < 2 || query.len() > 64 || !query.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, ' ' | '-' | '_' | '.' | '@' | '/')) {
+    if query.len() < 2 || query.len() > 64 || query.starts_with(['-', '/']) || !query.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, ' ' | '-' | '_' | '.' | '@' | '/')) {
         return Err("请输入 2–64 个有效搜索字符".into());
     }
     let cache = SEARCH_CACHE.get_or_init(|| Mutex::new(std::collections::HashMap::new()));
@@ -467,7 +469,7 @@ pub fn search(query: &str) -> Result<Vec<HomebrewResult>, String> {
     let brew = probe()?;
     let mut results = Vec::new();
     for kind in ["formula", "cask"] {
-        let names = search_names(&brew, kind, &query);
+        let names = search_names(&brew, kind, &query)?;
         results.extend(info_results(&brew, kind, &names));
     }
     let mut seen = std::collections::HashSet::new();
@@ -488,6 +490,10 @@ mod tests {
         assert!(valid_package("visual-studio-code"));
         assert!(!valid_package("node; rm -rf ~"));
         assert!(!valid_package(""));
+        assert!(valid_package("owner/tap/tool@2"));
+        for invalid in ["--force", "/tmp/tool", "../tool", "owner/../tool", "owner/tap/-f"] {
+            assert!(!valid_package(invalid));
+        }
         assert!(!valid_kind("zip"));
     }
 

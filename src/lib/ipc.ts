@@ -78,6 +78,7 @@ export interface HomebrewResult {
 
 export interface InstallProgress {
   jobId: number;
+  kind: PackageKind;
   softwareId: string;
   version: string;
   action: "install" | "uninstall";
@@ -96,6 +97,7 @@ export interface Verification {
 
 export interface InstallFinished {
   jobId: number;
+  kind: PackageKind;
   softwareId: string;
   version: string;
   action: "install" | "uninstall";

@@ -1,4 +1,4 @@
-name: Release DMG (manual, unsigned)
+name: Package macOS release
 
 on:
   workflow_dispatch:
@@ -7,44 +7,21 @@ permissions:
   contents: read
 
 jobs:
-  build-dmg:
-    name: Build unsigned macOS DMG
-    runs-on: macos-14
+  package:
+    name: Build and verify Apple Silicon DMG
+    runs-on: macos-15
     timeout-minutes: 45
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build DMG
-        run: npm run tauri -- build --bundles dmg
-
-      - name: Verify DMG
-        run: |
-          set -euo pipefail
-          DMG=$(find src-tauri/target/release/bundle/dmg -name '*.dmg' -type f | head -1)
-          test -n "$DMG"
-          hdiutil verify "$DMG"
-          shasum -a 256 "$DMG" > SHA256SUMS.txt
-          cat SHA256SUMS.txt
-
-      - name: Upload unsigned DMG artifact
-        uses: actions/upload-artifact@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: npm run package:macos
+      - uses: actions/upload-artifact@v4
         with:
-          name: devhub-v2-macos-dmg-unsigned
-          path: |
-            src-tauri/target/release/bundle/dmg/*.dmg
-            SHA256SUMS.txt
+          name: DevHub-macOS-arm64
+          path: src-tauri/target/release/distribution/*/*
           if-no-files-found: error

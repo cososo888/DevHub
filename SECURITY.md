@@ -4,7 +4,7 @@
 
 | Version | Platform | Supported |
 | --- | --- | --- |
-| 0.1.x | macOS Apple Silicon | Yes |
+| 0.2.x | macOS Apple Silicon | Yes |
 | Windows | Not implemented | No |
 
 ## Reporting a vulnerability

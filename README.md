@@ -13,14 +13,13 @@
   <a href="https://github.com/cososo888/DevHub/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/cososo888/DevHub/actions/workflows/ci.yml/badge.svg" /></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-2EA44F" /></a>
   <img alt="macOS" src="https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-000000?logo=apple&logoColor=white" />
-  <img alt="Windows" src="https://img.shields.io/badge/Windows-planned-8B95A7" />
   <img alt="Tauri" src="https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white" />
   <img alt="React" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111111" />
   <img alt="Rust" src="https://img.shields.io/badge/Rust-stable-CE422B?logo=rust&logoColor=white" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white" />
 </p>
 
-<p align="center"><a href="README_EN.md">English</a> · 中文</p>
+<p align="center"><a href="https://github.com/cososo888/DevHub/releases/download/v0.2.0/DevHub-V2-0.2.0-macOS-arm64.dmg"><strong>下载 macOS 安装包 · Apple Silicon</strong></a> · <a href="https://github.com/cososo888/DevHub/releases/tag/v0.2.0">发布说明及校验文件</a> · <a href="README_EN.md">English</a></p>
 
 ---
 
@@ -78,18 +77,18 @@ DevHub V2 是一个 **Tauri 2 + React + Rust** 的桌面应用，用来查看和
   - 多实例
   - PATH / 安装来源
 - 其他精选/搜索软件通过 Homebrew 包状态通用检测；
-- 启动/刷新只读取一次 Homebrew 状态，不为 100 个软件逐个执行昂贵命令；
+- 批量读取软件包状态，保留已检测到的版本和路径；
 - 系统、官网、Homebrew、fnm、uv、rustup 等已有安装都会展示；
-- **不是 DevHub 安装的软件不会显示为未安装**。
+- 检测范围覆盖常见路径和指定安装来源，无法确认时会标记状态。
 
 ### 安装与卸载
 
 - 不提供版本选择；
 - 固定命令：
   ```text
-  brew install <package>
+  brew install --formula <package>
   brew install --cask <package>
-  brew uninstall <package>
+  brew uninstall --formula <package>
   brew uninstall --cask <package>
   ```
 - 安装前二次确认；
@@ -148,7 +147,7 @@ DevHub V2 是一个 **Tauri 2 + React + Rust** 的桌面应用，用来查看和
 
 ### 直接使用 macOS 安装包
 
-当前构建面向 Apple Silicon Mac，应用最低系统版本为 macOS 11。仓库的「Download ZIP」提供源码。公开安装包请查看 [GitHub Releases](https://github.com/cososo888/DevHub/releases)。如果页面没有 DMG，可向提供者获取本地构建，开发者也可按下文从源码运行。
+适用于搭载 M 系列芯片的 Mac，应用部署目标为 macOS 11 及以上。下载 DMG 后即可安装。校验文件与安装包同在发布页。[下载 v0.2.0 安装包](https://github.com/cososo888/DevHub/releases/download/v0.2.0/DevHub-V2-0.2.0-macOS-arm64.dmg)
 
 1. 打开 DMG，将 `DevHub V2.app` 拖到「应用程序」，再从那里打开。当前构建仅使用本地签名，尚未经过 Apple 公证，首次打开可能被 macOS 拦截。[Apple 的应用安全说明](https://support.apple.com/zh-cn/102445)
 2. 打开后即可浏览软件、搜索精选目录并查看检测到的本机环境。使用打包好的应用无需安装 Node.js 或 Rust。
@@ -159,7 +158,7 @@ DevHub V2 是一个 **Tauri 2 + React + Rust** 的桌面应用，用来查看和
 前置条件：
 
 - macOS（Apple Silicon）
-- Node.js 20+
+- Node.js 24.15+ (24.x) / 26+
 - Rust stable
 - Xcode Command Line Tools
 - Homebrew（安装/卸载功能需要）
@@ -174,13 +173,13 @@ npm run tauri -- dev
 ### 构建 macOS 安装包
 
 ```bash
-npm run tauri -- build --bundles dmg
+npm run package:macos
 ```
 
 产物：
 
 ```text
-src-tauri/target/release/bundle/dmg/DevHub V2_0.1.0_aarch64.dmg
+src-tauri/target/release/distribution/0.2.0/
 ```
 
 ## 开发
@@ -193,13 +192,6 @@ npm run test:ui
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-当前基线：
-
-- UI：**19 passed**
-- Rust：**11 passed / 3 ignored**
-- TypeScript：通过
-- macOS release DMG：构建通过
-
 ### 常用命令
 
 | 命令 | 作用 |
@@ -207,7 +199,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 | `npm run dev` | 只启动 Vite 前端 |
 | `npm run tauri -- dev` | 启动完整 Tauri 应用 |
 | `npm run build` | 构建前端静态文件 |
-| `npm run tauri -- build --bundles dmg` | 构建 DMG |
+| `npm run package:macos` | 构建 DMG |
 | `npm run test:ui` | UI/组件测试 |
 | `npm run check` | TypeScript 类型检查 |
 | `cargo test --manifest-path src-tauri/Cargo.toml` | Rust 测试 |
@@ -236,39 +228,9 @@ cargo test --manifest-path src-tauri/Cargo.toml
 └── package.json
 ```
 
-## 开发进度
+## 版本记录
 
-| 阶段 | 状态 | 内容 |
-| --- | --- | --- |
-| Phase 1 | 完成 | 圆形网格、详情卡片、主题、基础检测 |
-| Phase 2 | 完成 | 真实本机检测、安装任务、进度与日志 |
-| Phase 3 | 完成 | 100 款目录、全库搜索、通用安装、安全卸载 |
-| macOS v0.1.0 | 可本地构建 | Apple Silicon DMG |
-| Windows 版 | **未实现** | winget provider、Windows 检测、NSIS 待开发 |
-
-## 历史 Windows 交接资料（开发已暂停）
-
-当前开发范围只有 macOS。以下资料不代表正在推进的计划，不要据此启动 Windows 适配。
-
-Windows 版只做：
-
-- Windows 10/11 **x64**
-- **winget**（不接 msstore / Chocolatey / Scoop）
-- 不提供版本选择
-- NSIS 安装包
-- 未签名，接受 UAC 和 SmartScreen
-
-当前已有：
-
-- `docs/WINDOWS-PORT-REPORT.md`
-- `docs/WINDOWS-TEAMMATE-GUIDE.md`
-- `docs/windows/WINDOWS-HANDOFF.md`
-- `docs/windows/winget-candidates.json`（**100 个候选，尚未在 Windows 验证**）
-- `docs/windows/verify-winget.ps1`
-- `src-tauri/tauri.windows.conf.json`
-
-**Windows 代码尚未实现，当前不能构建 Windows 安装包。**  
-100 个 winget ID 只是候选，必须由接手者在 Windows 上逐个验证后，才能作为最终目录。
+本项目当前维护 macOS Apple Silicon 版。历次更新见[变更日志](CHANGELOG.md)。历史 Windows 交接资料保存在 [docs/windows](docs/windows)。
 
 ## 已知限制
 
@@ -316,9 +278,9 @@ Windows 版只做：
 
 ## 状态
 
-- 版本：`0.1.0`
+- 版本：`0.2.0`
 - 当前平台：macOS Apple Silicon
-- Windows：规划中，未实现
+- Windows：已暂停
 - 许可证：[MIT](LICENSE)
 
 ---

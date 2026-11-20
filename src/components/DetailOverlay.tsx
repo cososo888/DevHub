@@ -73,8 +73,8 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, abs
   const busy = Boolean(task);
   const packageName = item.package;
   const description = softwareDescription(item);
-  const installCommand = item.kind === "cask" ? `brew install --cask ${packageName}` : `brew install ${packageName}`;
-  const uninstallCommand = item.kind === "cask" ? `brew uninstall --cask ${packageName}` : `brew uninstall ${packageName}`;
+  const installCommand = item.kind === "cask" ? `brew install --cask ${packageName}` : `brew install --formula ${packageName}`;
+  const uninstallCommand = item.kind === "cask" ? `brew uninstall --cask ${packageName}` : `brew uninstall --formula ${packageName}`;
   const showBrewLine = brewInstalled && !instances.some(instance => instance.path.includes("/Cellar/") || instance.path.includes("/Caskroom/") || instance.path.includes("/opt/homebrew/"));
   const log = result?.output || actionError || "";
   const feedback = result && !result.success ? failureFeedback(result.message, log) : actionError ? failureFeedback(actionError) : null;

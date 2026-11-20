@@ -118,31 +118,23 @@ fn home() -> PathBuf {
 }
 
 fn trusted(path: &Path) -> bool {
-    let text = path.to_string_lossy();
-    let home_text = home().to_string_lossy().into_owned();
     const SYSTEM: &[&str] = &[
-        "/usr/bin/", "/bin/", "/usr/sbin/", "/sbin/", "/opt/homebrew/", "/usr/local/",
-        "/Library/Java/", "/Library/Frameworks/", "/Applications/", "/opt/anaconda3/", "/opt/miniconda3/",
-        "/System/Volumes/", "/private/",
+        "/usr/bin", "/bin", "/usr/sbin", "/sbin", "/opt/homebrew/bin", "/opt/homebrew/Cellar",
+        "/usr/local/bin", "/usr/local/Cellar", "/usr/local/go", "/usr/local/mysql",
+        "/Library/Java/JavaVirtualMachines", "/Library/Frameworks", "/Library/Developer/CommandLineTools",
+        "/opt/anaconda3", "/opt/miniconda3", "/Applications/Xcode.app/Contents/Developer",
+        "/Applications/Docker.app/Contents/Resources", "/Applications/Visual Studio Code.app/Contents/Resources",
     ];
-    if SYSTEM.iter().any(|prefix| text.starts_with(prefix)) {
-        return true;
-    }
-    if !home_text.is_empty() && text.starts_with(&home_text) {
-        return text.contains("/.nvm/")
-            || text.contains("/.pyenv/")
-            || text.contains("/.cargo/")
-            || text.contains("/.rustup/")
-            || text.contains("/.volta/")
-            || text.contains("/.asdf/")
-            || text.contains("/.local/share/fnm/")
-            || text.contains("/.local/share/uv/")
-            || text.contains(".jdk/Contents/Home/")
-            || text.contains("/jdk-")
-            || text.contains("/Library/Java/")
-            || text.contains("/Library/Application Support/com.yujian.devhub");
-    }
-    false
+    if SYSTEM.iter().any(|root| path.starts_with(root)) { return true; }
+    let home = home();
+    home.is_absolute() && home != Path::new("/") && [
+        ".nvm/versions/node", ".pyenv/versions", ".cargo/bin", ".rustup/toolchains", ".volta",
+        ".asdf/installs", ".local/share/fnm/node-versions", "Library/Application Support/fnm/node-versions",
+        ".local/share/uv/python", "Library/Java/JavaVirtualMachines",
+        "Library/Application Support/com.yujian.devhub/storage-v1/versions",
+        "Library/Application Support/com.yujian.devhub.validation/storage-v1/versions",
+        "Library/Application Support/com.yujian.devhub.v2/storage-v1/versions",
+    ].iter().any(|rel| path.starts_with(home.join(rel)))
 }
 
 fn add_dir(dirs: &mut Vec<PathBuf>, path: PathBuf) {
@@ -499,7 +491,7 @@ fn probe(mut candidate: Candidate, sources: Vec<String>, last_detected_at: i64) 
         }
     } else if candidate.command.is_none() || !executable {
         detail = Some("已安装，但未定位到可执行文件".into());
-    } else if !trusted(&candidate.path) {
+    } else if !trusted(&candidate.path) || !fs::canonicalize(&candidate.path).is_ok_and(|target| trusted(&target)) {
         detail = Some("可执行文件不在受信任的检测目录，未运行版本探针".into());
     } else {
         let args = tool(&candidate.software_id).map(|item| item.arguments).unwrap_or(&[]);
@@ -652,6 +644,8 @@ mod tests {
         assert!(trusted(Path::new("/usr/bin/git")));
         assert!(trusted(Path::new("/opt/homebrew/bin/brew")));
         assert!(!trusted(Path::new("/tmp/evil/node")));
+        assert!(!trusted(Path::new("/private/tmp/node")));
+        assert!(!trusted(&home().join("projects/sample/.nvm/versions/node/bin/node")));
         assert!(trusted(&home().join(".local/share/fnm/node-versions/v22.14.0/installation/bin/node")));
         assert!(trusted(&home().join(".local/share/uv/python/cpython-3.12-macos-aarch64-none/bin/python3")));
     }
