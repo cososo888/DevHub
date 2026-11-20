@@ -48,6 +48,7 @@ export default function App() {
   const [status, setStatus] = useState<AppStatus | null>(null);
   const [packages, setPackages] = useState<InstalledPackages>({ formulae: [], casks: [] });
   const [remote, setRemote] = useState<HomebrewResult[]>([]);
+  const [remoteQuery, setRemoteQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searchRetry, setSearchRetry] = useState(0);
@@ -81,6 +82,7 @@ export default function App() {
     const cached = searchCache.current.get(key);
     if (cached) {
       setRemote(cached);
+      setRemoteQuery(key);
       setSearching(false);
       setSearchError(null);
       return;
@@ -94,6 +96,7 @@ export default function App() {
           if (!active) return;
           searchCache.current.set(key, results);
           setRemote(results);
+          setRemoteQuery(key);
         })
         .catch(value => { if (active) { setRemote([]); setSearchError(String(value)); } })
         .finally(() => { if (active) setSearching(false); });
@@ -132,7 +135,7 @@ export default function App() {
   }, [category, query, instancesBySoftware, brewMap]);
 
   const remoteItems = useMemo(() => {
-    if (query.trim().length < 2) return [];
+    if (query.trim().length < 2 || remoteQuery !== query.trim().toLowerCase()) return [];
     const seen = new Set(SOFTWARE.map(item => packageKey(item.kind, item.package)));
     const values: Software[] = [];
     for (const result of remote) {
@@ -142,7 +145,7 @@ export default function App() {
       values.push(remoteSoftware(result));
     }
     return values.sort((a, b) => a.name.localeCompare(b.name));
-  }, [query, remote]);
+  }, [query, remote, remoteQuery]);
 
   const items = useMemo(() => [...curated, ...remoteItems], [curated, remoteItems]);
   const installedIds = useMemo(() => new Set(items.filter(isInstalled).map(item => item.id)), [items, instancesBySoftware, brewMap]);
@@ -205,10 +208,10 @@ export default function App() {
         {globalSearch && (
           <div className="search-status" role="status">
             {searching
-              ? "正在搜索 Homebrew 全库…"
+              ? "正在搜索更多软件…（全局搜索，不受分类限制）"
               : searchError
                 ? <><span>Homebrew 搜索失败：{searchError}</span><button type="button" onClick={() => setSearchRetry(value => value + 1)}>重试</button></>
-                : <span>全局搜索（忽略分类） · 精选 {curated.length} 款 · Homebrew 全库 {searchCount} 款</span>}
+                : <span>全局搜索 · 精选 {curated.length} 款 · 更多软件 {searchCount} 款 · 清空搜索后恢复分类</span>}
           </div>
         )}
         {items.length > 0

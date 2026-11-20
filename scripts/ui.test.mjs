@@ -132,6 +132,11 @@ test("toolbar expands search, filters categories, clears on close and exposes th
   const input = await screen.findByRole("textbox", { name: "搜索软件" });
   await user.type(input, "node");
   assert.equal(screen.getByTestId("state").textContent, "node|全部|system");
+  await user.click(screen.getByRole("button", { name: "清空搜索" }));
+  assert.equal(screen.getByTestId("state").textContent, "|全部|system");
+  assert.equal(document.activeElement, input);
+  assert.ok(screen.getByRole("textbox", { name: "搜索软件" }));
+  await user.type(input, "node");
   await user.click(screen.getByRole("button", { name: "开发工具" }));
   assert.equal(screen.getByRole("button", { name: "开发工具" }).getAttribute("aria-pressed"), "true");
   await user.click(screen.getByRole("button", { name: "深色" }));
@@ -298,4 +303,41 @@ test("app starts with the full grid, filters by search, and never fabricates ins
   await waitFor(() => assert.equal(screen.queryByRole("button", { name: "Python" }), null));
   assert.ok(screen.getByRole("button", { name: "Git" }));
   assert.equal(screen.queryByText(/已安装/), null);
+});
+
+test("changing the search hides previous remote results before the next request completes", async () => {
+  const previous = window.__TAURI_INTERNALS__;
+  const previousEvents = window.__TAURI_EVENT_PLUGIN_INTERNALS__;
+  window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };
+  window.__TAURI_INTERNALS__ = {
+    transformCallback: () => 1,
+    invoke: async (command, args) => {
+      if (command === "get_installed_packages") return { formulae: [], casks: [] };
+      if (command === "get_detection_snapshot") return null;
+      if (command === "get_app_status") return { phase: 3, product: "DevHub V2" };
+      if (command === "search_homebrew") {
+        if (args.query === "fixture") return [{ package: "remote-fixture", kind: "formula", name: "RemoteFixture", description: "test only", version: null }];
+        return new Promise(() => {});
+      }
+      return false;
+    }
+  };
+  try {
+    const { default: App } = await import("../src/App.tsx");
+    render(React.createElement(App));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "搜索软件" }));
+    const input = screen.getByRole("textbox", { name: "搜索软件" });
+    await user.type(input, "fixture");
+    await screen.findByRole("button", { name: "RemoteFixture" });
+    await user.click(screen.getByRole("button", { name: "清空搜索" }));
+    await user.type(input, "memcached");
+    assert.equal(screen.queryByRole("button", { name: "RemoteFixture" }), null);
+    assert.ok(screen.getByRole("button", { name: "Memcached" }));
+  } finally {
+    cleanup();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    window.__TAURI_INTERNALS__ = previous;
+    window.__TAURI_EVENT_PLUGIN_INTERNALS__ = previousEvents;
+  }
 });
