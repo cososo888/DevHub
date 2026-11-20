@@ -4,6 +4,14 @@ All notable changes to DevHub V2 are documented here.
 
 ## [Unreleased]
 
+### Seamless macOS window chrome
+
+- Replace the separate system title strip with a transparent overlay, hide its title and keep the native traffic-light buttons.
+- Share one full-width glass backdrop across the sidebar and toolbar, with a soft fade into the software grid.
+- Keep categories centered over the software column and reserve space beside the window buttons for the compact DevHub icon.
+- Allow dragging the empty header area; preserve category, search and appearance controls as ordinary clickable controls.
+- Build-only handoff for user testing; no automated tests or native window interaction performed.
+
 ### Dock lifetime and install notifications
 
 - On macOS, closing the main window hides it while the app stays in the Dock and current work continues.

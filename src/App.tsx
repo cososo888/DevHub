@@ -7,6 +7,7 @@ import { OrbGrid } from "./components/OrbGrid";
 import { InstallationSidebar } from "./components/InstallationSidebar";
 import type { InstallationFilter } from "./components/InstallationSidebar";
 import { Toolbar } from "./components/Toolbar";
+import { WindowChrome } from "./components/WindowChrome";
 import { useDetection } from "./hooks/useDetection";
 import { useInstallTask } from "./hooks/useInstallTask";
 import { useTheme } from "./hooks/useTheme";
@@ -183,9 +184,7 @@ export default function App() {
   return (
     <div className="app" data-theme={theme}>
       <div className="ambient" aria-hidden="true" />
-      <div className="workspace">
-      <InstallationSidebar value={installationFilter} onChange={setInstallationFilter} counts={counts} />
-      <div className="content-pane">
+      <WindowChrome>
       <Toolbar
         query={query}
         onQuery={setQuery}
@@ -196,6 +195,10 @@ export default function App() {
         theme={theme}
         onTheme={setTheme}
       />
+      </WindowChrome>
+      <div className="workspace">
+      <InstallationSidebar value={installationFilter} onChange={setInstallationFilter} counts={counts} />
+      <div className="content-pane">
       <main className="main">
         <div className="grid-heading">
           <div className="heading-actions">

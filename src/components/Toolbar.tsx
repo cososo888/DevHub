@@ -38,13 +38,13 @@ export function Toolbar({ query, onQuery, category, onCategory, searchOpen, onSe
   }
 
   return (
-    <header className="topbar">
-      <nav className="categories" aria-label="软件分类" title={query.trim().length >= 2 ? "搜索期间显示全部分类的结果；清空搜索后恢复所选分类" : "选择软件分类"}>
+    <div className="topbar" data-tauri-drag-region>
+      <nav className="categories" data-tauri-drag-region aria-label="软件分类" title={query.trim().length >= 2 ? "搜索期间显示全部分类的结果；清空搜索后恢复所选分类" : "选择软件分类"}>
         {["全部", ...CATEGORIES].map(value => (
           <button key={value} type="button" className={`chip${category === value ? " active" : ""}`} aria-pressed={category === value} onClick={() => onCategory(value)}>{value}</button>
         ))}
       </nav>
-      <div className="toolbar-right">
+      <div className="toolbar-right" data-tauri-drag-region>
         <div ref={search} className={`search${searchOpen ? " open" : ""}`}>
           {searchOpen && <input ref={input} aria-label="搜索软件" placeholder="搜索名称或包名…" value={query} onChange={event => onQuery(event.target.value)} onKeyDown={event => { if (event.key === "Escape") toggleSearch(); }} />}
           {searchOpen && query && <button type="button" className="icon-button" aria-label="清空搜索" title="清空搜索，恢复分类" onClick={() => { onQuery(""); input.current?.focus(); }}>×</button>}
@@ -54,6 +54,6 @@ export function Toolbar({ query, onQuery, category, onCategory, searchOpen, onSe
         </div>
         <ThemePicker theme={theme} onTheme={onTheme} />
       </div>
-    </header>
+    </div>
   );
 }

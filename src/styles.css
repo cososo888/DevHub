@@ -16,6 +16,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 }
 
 .app {
+  --sidebar-width: 174px;
+  --chrome-height: 68px;
+  --layout-width: 1480px;
   --bg: #f6f7fb;
   --text: #172033;
   --muted: #697389;
@@ -89,19 +92,31 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
   opacity: .9;
 }
 
-/* Top bar */
+/* Shared window chrome: blur spans both columns and fades into the workspace. */
+.window-chrome {
+  position: sticky; top: 0; z-index: 30; isolation: isolate;
+  min-height: var(--chrome-height); user-select: none; -webkit-user-select: none;
+}
+.window-chrome::before {
+  content: ""; position: absolute; inset: 0 0 -28px; z-index: -1; pointer-events: none;
+  background: color-mix(in srgb, var(--bg) 68%, transparent);
+  backdrop-filter: blur(28px) saturate(1.18); -webkit-backdrop-filter: blur(28px) saturate(1.18);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 64%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 64%, transparent 100%);
+}
+.window-toolbar {
+  display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  align-items: start; max-width: var(--layout-width); margin: 0 auto;
+}
+.devhub-brand {
+  display: flex; align-items: center; justify-content: flex-end;
+  height: 68px; padding-right: 18px;
+}
+.devhub-brand img { display: block; width: 32px; height: 32px; pointer-events: none; }
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  gap: 22px;
-  padding: 16px clamp(18px, 3.2vw, 40px);
-  background: color-mix(in srgb, var(--bg) 62%, transparent);
-  -webkit-backdrop-filter: blur(24px) saturate(1.35);
-  backdrop-filter: blur(24px) saturate(1.35);
-  border-bottom: 1px solid var(--line);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+  gap: 12px; min-width: 0; min-height: var(--chrome-height);
+  padding: 16px clamp(18px, 3.2vw, 40px); background: transparent;
 }
 .brand { display: flex; align-items: center; gap: 11px; flex-shrink: 0; }
 .brand-mark {
@@ -309,8 +324,6 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 34px); letter-spacing: -1px; font-we
 .detail-advanced dd { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
 
 @media (max-width: 900px) {
-  .topbar { flex-wrap: wrap; gap: 10px 16px; }
-  .categories { order: 3; flex-basis: 100%; }
   .brand-copy small { display: none; }
   .search input { width: 150px; }
   .orb-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 26px 12px; }
@@ -549,8 +562,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, #root::-webkit-scrollbar,
 .software-description li + li { margin-top: 6px; }
 
 .app { overflow-x: clip; }
-.workspace { display: grid; grid-template-columns: 174px minmax(0, 1fr); align-items: start; max-width: 1480px; margin: 0 auto; }
-.installation-sidebar { position: sticky; top: 100px; padding: 28px 10px 20px 18px; }
+.workspace { display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); align-items: start; max-width: var(--layout-width); margin: 0 auto; }
+.installation-sidebar { position: sticky; top: calc(var(--chrome-height) + 16px); padding: 16px 10px 20px 18px; }
 .installation-sidebar nav { display: grid; gap: 5px; }
 .installation-sidebar button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 11px 10px; color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: 12px; text-align: left; font-size: 12px; }
 .installation-sidebar button:hover { color: var(--text); background: var(--surface); }
@@ -559,41 +572,28 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, #root::-webkit-scrollbar,
 .workspace > .main { min-width: 0; width: 100%; }
 .search-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .search-status button { border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 8px; padding: 4px 8px; }
-@media (max-width: 900px) { .workspace { grid-template-columns: 145px minmax(0, 1fr); } .installation-sidebar { padding-left: 10px; top: 120px; } }
-@media (max-width: 600px) { .workspace { grid-template-columns: 116px minmax(0, 1fr); } .installation-sidebar { padding: 24px 4px; } .installation-sidebar button { gap: 5px; padding: 10px 6px; } }
+@media (max-width: 900px) { .app { --sidebar-width: 145px; } .installation-sidebar { padding-left: 10px; } }
+@media (max-width: 600px) { .app { --sidebar-width: 116px; } .installation-sidebar { padding: 16px 4px; } .installation-sidebar button { gap: 5px; padding: 10px 6px; } .devhub-brand img { visibility: hidden; } }
 
 
 /* The toolbar belongs to the software column, never the sidebar. */
 .content-pane { min-width: 0; }
 .content-pane > .main { min-width: 0; width: 100%; padding-top: 16px; }
-.content-pane > .topbar {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
-  gap: 12px; padding: 16px clamp(18px, 3.2vw, 40px);
-  border: 0; background: transparent; isolation: isolate;
-  backdrop-filter: none; -webkit-backdrop-filter: none;
-}
-.content-pane > .topbar::before {
-  content: ""; position: absolute; inset: 0 0 -22px; z-index: -1; pointer-events: none;
-  background: color-mix(in srgb, var(--bg) 72%, transparent);
-  backdrop-filter: blur(26px) saturate(1.18); -webkit-backdrop-filter: blur(26px) saturate(1.18);
-  mask-image: linear-gradient(to bottom, #000 0%, #000 65%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 65%, transparent 100%);
-}
-.content-pane .categories { order: 0; flex-basis: auto; justify-content: normal; }
-.content-pane .categories .chip:first-child { margin-left: auto; }
-.content-pane .categories .chip:last-child { margin-right: auto; }
+.topbar .categories { justify-content: normal; }
+.topbar .categories .chip:first-child { margin-left: auto; }
+.topbar .categories .chip:last-child { margin-right: auto; }
 .content-pane .grid-heading { justify-content: flex-end; }
 .content-pane .heading-actions { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .content-pane .heading-actions .detection-line { margin: 0; text-align: right; }
 .content-pane .refresh-button { flex-shrink: 0; }
-.installation-sidebar { top: 24px; padding-top: 96px; }
 /* Full-viewBox brand marks need the same optical footprint as the inset hand-drawn marks. */
 .orb-circle > .brand-logo { width: 39%; height: 39%; }
 .morph-logo > .brand-logo { width: 75%; height: 75%; }
 @media (max-width: 1050px) {
-  .content-pane > .topbar { grid-template-columns: minmax(0, 1fr); gap: 8px; }
-  .content-pane .toolbar-right { justify-self: end; grid-row: 1; }
-  .content-pane .categories { grid-row: 2; width: 100%; }
+  .app { --chrome-height: 108px; }
+  .topbar { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .topbar .toolbar-right { justify-self: end; grid-row: 1; }
+  .topbar .categories { grid-row: 2; width: 100%; }
 }
 
 
@@ -609,7 +609,3 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, #root::-webkit-scrollbar,
 }
 .morph-card.open > .morph-logo { left: 34px; top: 34px; opacity: 0; transition-delay: 0s, 0s, 0s, 0s, 0s, .14s; }
 .morph-card.closing > .morph-logo { opacity: 1; transition-delay: 0s; }
-.installation-sidebar { padding-top: 16px; }
-.devhub-brand { display: flex; align-items: center; height: 40px; padding-left: 6px; margin-bottom: 32px; }
-.devhub-brand img { display: block; width: 36px; height: 36px; }
-@media (max-width: 600px) { .installation-sidebar { padding-top: 16px; } .devhub-brand { padding-left: 6px; } }
