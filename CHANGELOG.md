@@ -4,6 +4,16 @@ All notable changes to DevHub V2 are documented here.
 
 ## [Unreleased]
 
+### Stable introductions and installation filters
+
+- Make the plain exclamation disclosure click-only and keep the summary visible, preventing the hover/resize loop.
+- Expand curated software introductions with concrete purpose, use cases and use conditions.
+- Replace the three theme controls with one menu for day, night and automatic appearance.
+- Add left-side filters for all, installed and uninstalled software, combined with search and categories.
+- Preserve the keyword when search auto-collapses; show an explicit clear-keyword action.
+- Do not classify pending, stale or failed state queries as proof that software is uninstalled.
+
+
 ### Efficient details and colorful icons
 
 - Remove generic package-manager policy from software introductions and avoid repeating the short description.
@@ -18,7 +28,7 @@ All notable changes to DevHub V2 are documented here.
 - Dismiss search when selecting another control or scrolling outside it; remove the top-left brand block.
 - Keep grid order stable after installed state updates.
 - Preserve the source orb radius and tinted glass surface when expanding details.
-- Add hoverable, click-to-pin software information in the scrollable detail card.
+- Add click-to-toggle software information in the scrollable detail card.
 - Bundle Simple Icons artwork locally and replace remaining letter placeholders with tool glyphs.
 - Automated UI checks and debug app packaging cover these changes; visual/native interaction acceptance remains pending because preview tools were unavailable.
 

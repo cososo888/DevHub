@@ -534,3 +534,29 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, #root::-webkit-scrollbar,
 .detail-close { top: 20px; right: 20px; }
 
 .brand-logo { object-fit: contain; opacity: 1; }
+
+/* Click-only disclosure: the heading and trigger do not depend on expanded content. */
+.detail-heading-line { display: flex; align-items: center; gap: 8px; }
+.detail-heading-line h2 { min-width: 0; overflow-wrap: anywhere; }
+.description-toggle {
+  flex: 0 0 28px; margin: 0; padding: 0; width: 28px; height: 28px;
+  border: 0; border-radius: 0; background: transparent; color: var(--muted);
+}
+.description-toggle:hover, .description-toggle[aria-expanded="true"] { color: var(--text); }
+.software-description h3 { margin: 18px 0 6px; font-size: 12px; color: var(--muted); }
+.software-description ul { padding-left: 18px; margin: 6px 0; }
+.software-description li + li { margin-top: 6px; }
+
+.app { overflow-x: clip; }
+.workspace { display: grid; grid-template-columns: 174px minmax(0, 1fr); align-items: start; max-width: 1480px; margin: 0 auto; }
+.installation-sidebar { position: sticky; top: 100px; padding: 28px 10px 20px 18px; }
+.installation-sidebar nav { display: grid; gap: 5px; }
+.installation-sidebar button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 11px 10px; color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: 12px; text-align: left; font-size: 12px; }
+.installation-sidebar button:hover { color: var(--text); background: var(--surface); }
+.installation-sidebar button.selected { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); border-color: color-mix(in srgb, var(--accent) 14%, transparent); font-weight: 600; }
+.installation-sidebar small { margin-left: auto; font-size: 11px; font-variant-numeric: tabular-nums; }
+.workspace > .main { min-width: 0; width: 100%; }
+.search-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.search-status button { border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 8px; padding: 4px 8px; }
+@media (max-width: 900px) { .workspace { grid-template-columns: 145px minmax(0, 1fr); } .installation-sidebar { padding-left: 10px; top: 120px; } }
+@media (max-width: 600px) { .workspace { grid-template-columns: 116px minmax(0, 1fr); } .installation-sidebar { padding: 24px 4px; } .installation-sidebar button { gap: 5px; padding: 10px 6px; } }

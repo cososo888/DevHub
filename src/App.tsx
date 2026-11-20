@@ -4,6 +4,8 @@ import type { Software } from "./catalog";
 import { DetailOverlay } from "./components/DetailOverlay";
 import type { OrbOrigin } from "./components/DetailOverlay";
 import { OrbGrid } from "./components/OrbGrid";
+import { InstallationSidebar } from "./components/InstallationSidebar";
+import type { InstallationFilter } from "./components/InstallationSidebar";
 import { Toolbar } from "./components/Toolbar";
 import { useDetection } from "./hooks/useDetection";
 import { useInstallTask } from "./hooks/useInstallTask";
@@ -42,6 +44,8 @@ export default function App() {
   const { snapshot, refreshing, error, refresh } = useDetection();
   const install = useInstallTask();
   const [query, setQuery] = useState("");
+  const [installationFilter, setInstallationFilter] = useState<InstallationFilter>("all");
+  const [packagesStatus, setPackagesStatus] = useState<"loading" | "ready" | "error">("loading");
   const [category, setCategory] = useState("全部");
   const [searchOpen, setSearchOpen] = useState(false);
   const [selected, setSelected] = useState<{ item: Software; origin: OrbOrigin } | null>(null);
@@ -55,9 +59,10 @@ export default function App() {
 
   useEffect(() => {
     let live = true;
+    setPackagesStatus("loading");
     desktop<InstalledPackages>("get_installed_packages")
-      .then(value => { if (live) setPackages(value); })
-      .catch(() => { if (live) setPackages({ formulae: [], casks: [] }); });
+      .then(value => { if (live) { setPackages(value); setPackagesStatus("ready"); } })
+      .catch(() => { if (live) setPackagesStatus("error"); });
     return () => { live = false; };
   }, [snapshot?.refreshedAt, install.result?.jobId]);
 
@@ -107,11 +112,6 @@ export default function App() {
 
   const brewMap = useMemo(() => {
     const map = new Map<string, PackageVersion>();
-    for (const item of [...packages.formulae, ...packages.casks]) {
-      map.set(packageKey(item.package.includes(":") ? "cask" : "formula", item.package), item);
-    }
-    // The backend does not encode kind in PackageVersion; rebuild from the two arrays.
-    map.clear();
     for (const item of packages.formulae) map.set(packageKey("formula", item.package), item);
     for (const item of packages.casks) map.set(packageKey("cask", item.package), item);
     return map;
@@ -123,7 +123,7 @@ export default function App() {
   const curated = useMemo(() => {
     return filterCurated(SOFTWARE, query, category)
       .sort((a, b) => b.popularity - a.popularity);
-  }, [category, query, instancesBySoftware, brewMap]);
+  }, [category, query]);
 
   const remoteItems = useMemo(() => {
     if (query.trim().length < 2 || remoteQuery !== query.trim().toLowerCase()) return [];
@@ -138,7 +138,19 @@ export default function App() {
     return values.sort((a, b) => a.name.localeCompare(b.name));
   }, [query, remote, remoteQuery]);
 
-  const items = useMemo(() => [...curated, ...remoteItems], [curated, remoteItems]);
+  const candidates = useMemo(() => [...curated, ...remoteItems], [curated, remoteItems]);
+  // Absence is meaningful only after both current detection and package queries succeeded.
+  const absenceConfirmed = Boolean(snapshot && !snapshot.stale && !refreshing && !error
+    && snapshot.errors.length === 0 && packagesStatus === "ready");
+  const installedCount = candidates.filter(isInstalled).length;
+  const counts = { all: candidates.length, installed: installedCount,
+    "not-installed": absenceConfirmed ? candidates.length - installedCount : null };
+  const items = candidates.filter(item => installationFilter === "all"
+    || (installationFilter === "installed" ? isInstalled(item) : absenceConfirmed && !isInstalled(item)));
+  const filterNotice = installationFilter === "not-installed" && !absenceConfirmed
+    ? packagesStatus === "error" ? "软件状态查询未完成，暂不能确认未安装列表。"
+      : refreshing || packagesStatus === "loading" ? "正在核对安装状态…" : "检测结果尚未确认，请刷新检测。"
+    : null;
   const installedIds = useMemo(() => new Set(items.filter(isInstalled).map(item => item.id)), [items, instancesBySoftware, brewMap]);
   const searchCount = remoteItems.length;
   const selectedInstances = selected ? instancesBySoftware.get(selected.item.id) ?? [] : [];
@@ -170,12 +182,15 @@ export default function App() {
         theme={theme}
         onTheme={setTheme}
       />
+      <div className="workspace">
+      <InstallationSidebar value={installationFilter} onChange={setInstallationFilter} counts={counts} />
       <main className="main">
         <div className="grid-heading">
           <div>
             <p className={`detection-line${error ? " error" : ""}`} role="status">
               {cacheState}
               {warning}
+              {packagesStatus === "error" ? " · 部分软件包状态未确认" : ""}
               {error ? ` · ${error}` : ""}
             </p>
           </div>
@@ -198,16 +213,19 @@ export default function App() {
         {globalSearch && (
           <div className="search-status" role="status">
             {searching
-              ? "正在搜索更多软件…（全局搜索，不受分类限制）"
+              ? `正在搜索“${query.trim()}”…`
               : searchError
                 ? <><span>Homebrew 搜索失败：{searchError}</span><button type="button" onClick={() => setSearchRetry(value => value + 1)}>重试</button></>
-                : <span>全局搜索 · 精选 {curated.length} 款 · 更多软件 {searchCount} 款 · 清空搜索后恢复分类</span>}
+                : <span>“{query.trim()}” · 精选 {curated.length} 款 · 更多软件 {searchCount} 款</span>}
+            <button type="button" onClick={() => setQuery("")}>清除关键词</button>
           </div>
         )}
+        {filterNotice && <p className="detection-line" role="status">{filterNotice}</p>}
         {items.length > 0
           ? <OrbGrid items={items} installed={installedIds} installing={busyIds} sourceId={selected?.item.id ?? null} onOpen={(item, origin) => setSelected({ item, origin })} />
-          : <div className="empty">{searching ? "正在搜索 Homebrew…" : "没有匹配的软件，换个关键词或分类试试。"}</div>}
+          : !filterNotice && <div className="empty">{searching ? "正在搜索…" : installationFilter === "installed" ? "当前范围内没有已安装的软件。" : installationFilter === "not-installed" ? "当前检测范围内没有未安装的软件。" : "没有匹配的软件。"}</div>}
       </main>
+      </div>
       {selected && (
         <DetailOverlay
           item={selected.item}

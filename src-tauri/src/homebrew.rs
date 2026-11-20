@@ -77,6 +77,7 @@ pub fn installed_packages() -> Result<InstalledPackages, String> {
     let formula_output = process::run_with_env(&brew.path, &["list", "--formula", "--versions"], LIST_TIMEOUT, 2 * 1024 * 1024, ENV)?;
     if formula_output.status != 0 { return Err(format!("无法读取 Homebrew formula：{}", formula_output.stderr.trim())); }
     let cask_output = process::run_with_env(&brew.path, &["list", "--cask", "--versions"], LIST_TIMEOUT, 2 * 1024 * 1024, ENV)?;
+    if cask_output.status != 0 { return Err(format!("无法读取 Homebrew cask：{}", cask_output.stderr.trim())); }
     let parse = |text: &str, kind: &str| -> Vec<PackageVersion> {
         text.lines().filter_map(|line| {
             let mut parts = line.split_whitespace();
@@ -88,7 +89,7 @@ pub fn installed_packages() -> Result<InstalledPackages, String> {
     };
     Ok(InstalledPackages {
         formulae: parse(&formula_output.stdout, "formula"),
-        casks: if cask_output.status == 0 { parse(&cask_output.stdout, "cask") } else { Vec::new() },
+        casks: parse(&cask_output.stdout, "cask"),
     })
 }
 

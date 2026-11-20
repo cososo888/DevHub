@@ -1,12 +1,7 @@
 import { useEffect, useRef } from "react";
 import { CATEGORIES } from "../catalog";
 import type { Theme } from "../hooks/useTheme";
-
-const THEMES: { value: Theme; label: string; icon: string }[] = [
-  { value: "system", label: "跟随系统", icon: "◐" },
-  { value: "light", label: "浅色", icon: "☀" },
-  { value: "dark", label: "深色", icon: "☾" }
-];
+import { ThemePicker } from "./ThemePicker";
 
 export function Toolbar({ query, onQuery, category, onCategory, searchOpen, onSearchToggle, theme, onTheme }: {
   query: string;
@@ -24,7 +19,7 @@ export function Toolbar({ query, onQuery, category, onCategory, searchOpen, onSe
     if (!searchOpen) return;
     const dismiss = (event: Event) => {
       if (event.target instanceof Node && search.current?.contains(event.target)) return;
-      onQuery(""); onSearchToggle();
+      onSearchToggle();
     };
     document.addEventListener("click", dismiss);
     document.addEventListener("wheel", dismiss, { passive: true });
@@ -32,7 +27,7 @@ export function Toolbar({ query, onQuery, category, onCategory, searchOpen, onSe
       document.removeEventListener("click", dismiss);
       document.removeEventListener("wheel", dismiss);
     };
-  }, [searchOpen, onQuery, onSearchToggle]);
+  }, [searchOpen, onSearchToggle]);
   useEffect(() => {
     if (searchOpen) input.current?.focus();
   }, [searchOpen]);
@@ -57,9 +52,7 @@ export function Toolbar({ query, onQuery, category, onCategory, searchOpen, onSe
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" strokeWidth="2" /><path d="m15.5 15.5 5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
           </button>
         </div>
-        <div className="theme-switch" role="group" aria-label="主题">
-          {THEMES.map(item => <button key={item.value} type="button" className={theme === item.value ? "active" : ""} aria-label={item.label} aria-pressed={theme === item.value} title={item.label} onClick={() => onTheme(item.value)}>{item.icon}</button>)}
-        </div>
+        <ThemePicker theme={theme} onTheme={onTheme} />
       </div>
     </header>
   );

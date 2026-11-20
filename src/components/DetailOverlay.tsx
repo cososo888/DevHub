@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { Software } from "../catalog";
@@ -46,7 +46,7 @@ export function anchoredCard(origin: OrbOrigin, width: number, height: number, v
   return { left, top, width: w, height: natural };
 }
 
-function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, homebrewReady, task, result, actionError, confirm, onConfirm, onInstall, onUninstall, expanded, pinned, onExpanded, onPinned, interactive = false }: {
+function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, homebrewReady, task, result, actionError, confirm, onConfirm, onInstall, onUninstall, expanded, onExpanded, interactive = false }: {
   item: Software;
   instances: SoftwareInstance[];
   brewInstalled: boolean;
@@ -61,11 +61,10 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, hom
   onInstall: () => void;
   onUninstall: () => void;
   expanded: boolean;
-  pinned: boolean;
   onExpanded: (value: boolean) => void;
-  onPinned: (value: boolean) => void;
   interactive?: boolean;
 }) {
+  const introductionId = useId();
   const installed = instances.length > 0 || brewInstalled;
   const nonBrewInstalled = instances.length > 0 && !brewInstalled;
   const busy = Boolean(task);
@@ -79,16 +78,23 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, hom
   return (
     <div className="detail-inner" tabIndex={interactive ? 0 : undefined} role={interactive ? "region" : undefined} aria-label={interactive ? `${item.name} 详情内容` : undefined}>
       <header className="detail-head">
-        <h2>{item.name}</h2>
-        {!expanded && <p>{item.description}</p>}
-        <button type="button" className="description-toggle" aria-label="详细介绍" aria-expanded={expanded} onMouseEnter={() => onExpanded(true)} onMouseLeave={() => { if (!pinned) onExpanded(false); }} onFocus={() => onExpanded(true)} onClick={() => { onPinned(!pinned); onExpanded(!pinned); }}>
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.5"/><path d="M12 6.5v7M12 16.5v1" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-        </button>
+        <div className="detail-heading-line">
+          <h2>{item.name}</h2>
+          {description && <button type="button" className="description-toggle" aria-label="详细介绍" aria-expanded={expanded} aria-controls={introductionId} onClick={() => onExpanded(!expanded)}>
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 4v10M12 18v1" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
+          </button>}
+        </div>
+        <p>{item.description}</p>
       </header>
 
-      {expanded && <section className="software-description" aria-label="软件详细介绍">
+      {expanded && <section id={introductionId} className="software-description" aria-label="软件详细介绍">
         <p>{description?.purpose ?? item.description}</p>
-        {description && <ul>{description.uses.map(use => <li key={use}>{use}</li>)}</ul>}
+        {description && <>
+          <h3>适合做什么</h3>
+          <ul>{description.uses.map(use => <li key={use}>{use}</li>)}</ul>
+          <h3>使用条件</h3>
+          <ul>{description.requirements.map(requirement => <li key={requirement}>{requirement}</li>)}</ul>
+        </>}
       </section>}
       <div className="env-summary">
         <span className={`env-state${installed ? " installed" : ""}`}>{installed ? "已安装" : "未安装"}</span>
@@ -141,7 +147,7 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, hom
           <span className="mini-spinner" />
           <strong>{task.stage === "verifying" ? "正在验证结果" : task.stage === "starting" ? "正在检查并提交" : task.action === "uninstall" ? "正在卸载" : "正在安装"}</strong>
           <span>{task.message}</span>
-          <small>此进度没有百分比；关闭详情后任务仍会继续。</small>
+          <small>关闭详情后任务仍会继续。</small>
           <div className="indeterminate" />
         </div>
       )}
@@ -190,7 +196,6 @@ export function DetailOverlay({ item, origin, onClose, instances = [], brewInsta
   const [closing, setClosing] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [expanded, setExpanded] = useState(false);
-  const [pinned, setPinned] = useState(false);
   const measure = useRef<HTMLDivElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const card = useRef<HTMLElement>(null);
@@ -248,13 +253,13 @@ export function DetailOverlay({ item, origin, onClose, instances = [], brewInsta
   const geometry: CSSProperties = entered
     ? { left: target.left, top: target.top, width: target.width, height: target.height, borderRadius: Math.max(1, origin.width / 2) }
     : { left: origin.left, top: origin.top, width: origin.width, height: origin.height, borderRadius: Math.max(1, origin.width / 2) };
-  const body = <DetailBody item={item} instances={instances} brewInstalled={brewInstalled} brewVersion={brewVersion} brewPath={brewPath} homebrewReady={homebrewReady} task={task} result={result} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} expanded={expanded} pinned={pinned} onExpanded={setExpanded} onPinned={setPinned} interactive />;
+  const body = <DetailBody item={item} instances={instances} brewInstalled={brewInstalled} brewVersion={brewVersion} brewPath={brewPath} homebrewReady={homebrewReady} task={task} result={result} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} expanded={expanded} onExpanded={setExpanded} interactive />;
 
   return createPortal(
     <div className="detail-layer">
       <div className="detail-catcher" onClick={close} aria-hidden="true" />
       <div ref={measure} className="detail-measure" style={{ width }} aria-hidden="true">
-        <DetailBody item={item} instances={instances} brewInstalled={brewInstalled} brewVersion={brewVersion} brewPath={brewPath} homebrewReady={homebrewReady} task={task} result={result} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} expanded={expanded} pinned={pinned} onExpanded={setExpanded} onPinned={setPinned} />
+        <DetailBody item={item} instances={instances} brewInstalled={brewInstalled} brewVersion={brewVersion} brewPath={brewPath} homebrewReady={homebrewReady} task={task} result={result} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} expanded={expanded} onExpanded={setExpanded} />
       </div>
       <section ref={card} className={`morph-card${entered ? " open" : ""}${closing ? " closing" : ""}`} style={{ ...geometry, "--orb-accent": item.accent } as CSSProperties} role="dialog" aria-modal="true" aria-label={`${item.name} 详情`} onClick={event => event.stopPropagation()}>
         <span className="morph-logo" aria-hidden="true"><SoftwareLogo id={item.id} name={item.name} /></span>

@@ -7,5 +7,7 @@
 - Keep technical logs available on demand; do not hide uncertainty or claim success from a process exit alone.
 - Preserve colorful brand artwork in light and dark modes. Prefer bundled local assets; label generic fallbacks honestly rather than implying an official logo.
 - Reuse the existing orb grid and detail components. Keep theme, keyboard access and scrolling usable.
-- Check the worktree before editing and preserve user changes. Validate UI changes with type checks, relevant UI tests and a build. State honestly when native visual verification was unavailable.
+- Check the worktree before editing and preserve user changes. Build the updated app for handoff. Testing is user-led: do not automatically run automated tests or operate the native app for validation unless the user asks. State honestly which checks were actually performed.
 - Do not run real host software installs/uninstalls, edit PATH/Shell/system configuration or delete user data without separate explicit authorization. No remote push without user instruction.
+
+- Software introductions open only on explicit click, never hover or focus. Keep the summary and trigger stable during disclosure; detailed text includes concrete purpose and actual use conditions, not package-manager boilerplate.

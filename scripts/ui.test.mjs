@@ -139,9 +139,12 @@ test("toolbar expands search, filters categories, clears on close and exposes th
   await user.type(input, "node");
   await user.click(screen.getByRole("button", { name: "开发工具" }));
   assert.equal(screen.getByRole("button", { name: "开发工具" }).getAttribute("aria-pressed"), "true");
-  await user.click(screen.getByRole("button", { name: "深色" }));
-  assert.equal(screen.getByRole("button", { name: "深色" }).getAttribute("aria-pressed"), "true");
-  assert.equal(screen.getByTestId("state").textContent, "|开发工具|dark");
+  assert.equal(screen.queryByRole("textbox"), null);
+  assert.equal(screen.queryByRole("menu"), null);
+  await user.click(screen.getByRole("button", { name: "外观设置" }));
+  await user.click(screen.getByRole("menuitemradio", { name: "夜间" }));
+  assert.equal(screen.queryByRole("menu"), null);
+  assert.equal(screen.getByTestId("state").textContent, "node|开发工具|dark");
   await user.click(screen.getByRole("button", { name: "搜索软件" }));
   await user.click(screen.getByRole("button", { name: "收起搜索" }));
   assert.equal(screen.queryByRole("textbox"), null);
@@ -303,7 +306,7 @@ test("app starts with the full grid, filters by search, and never fabricates ins
   await user.type(await screen.findByRole("textbox", { name: "搜索软件" }), "git");
   await waitFor(() => assert.equal(screen.queryByRole("button", { name: "Python" }), null));
   assert.ok(screen.getByRole("button", { name: "Git" }));
-  assert.equal(screen.queryByText(/已安装/), null);
+  assert.equal(document.querySelectorAll(".orb.is-installed").length, 0);
 });
 
 test("changing the search hides previous remote results before the next request completes", async () => {
@@ -355,7 +358,7 @@ test("failure guidance distinguishes verification from network errors and preser
 });
 
 
-test("detail keeps the source radius and its introduction can be pinned for scrolling", async () => {
+test("detail keeps the source radius and toggles introduction only on click without removing its summary", async () => {
   globalThis.__REDUCE__ = true;
   const item = SOFTWARE.find(item => item.id === "memcached");
   render(React.createElement(DetailOverlay, { item, origin: { left: 30, top: 30, width: 100, height: 100 }, onClose() {}, homebrewReady: true }));
@@ -364,10 +367,16 @@ test("detail keeps the source radius and its introduction can be pinned for scro
   const info = screen.getByRole("button", { name: "详细介绍" });
   const user = userEvent.setup();
   await user.hover(info);
-  assert.ok(screen.getByRole("region", { name: "软件详细介绍" }));
+  assert.equal(screen.queryByRole("region", { name: "软件详细介绍" }), null);
+  info.focus();
+  assert.equal(screen.queryByRole("region", { name: "软件详细介绍" }), null);
+  assert.equal(info.querySelector("circle"), null);
+  assert.ok(dialog.querySelector(".detail-head").textContent.includes(item.description));
   await user.click(info);
   await user.unhover(info);
   assert.ok(screen.getByRole("region", { name: "软件详细介绍" }));
+  assert.ok(dialog.querySelector(".detail-head").textContent.includes(item.description));
+  assert.ok(screen.getByRole("heading", { name: "使用条件" }));
   await user.click(info);
   assert.equal(screen.queryByRole("region", { name: "软件详细介绍" }), null);
 });
@@ -437,4 +446,133 @@ test("brand icons keep color and multi-color artwork across themes instead of bl
   assert.ok(svg);
   assert.equal(svg.querySelector("text"), null);
   assert.ok([...colorPaints(svg)].some(color => !["#000", "#000000", "#fff", "#ffffff"].includes(color)), "fallback must be a colored tool glyph");
+});
+
+
+test("theme menu exposes one trigger and supports keyboard, escape and outside dismissal", async () => {
+  const { ThemePicker } = await import("../src/components/ThemePicker.tsx");
+  let selected = "system";
+  render(React.createElement("div", null, React.createElement(ThemePicker, { theme: "system", onTheme: value => { selected = value; } }), React.createElement("button", null, "外部操作")));
+  const user = userEvent.setup();
+  const trigger = screen.getByRole("button", { name: "外观设置" });
+  assert.equal(screen.queryByRole("menu"), null);
+  await user.click(trigger);
+  assert.equal(screen.getAllByRole("menuitemradio").length, 3);
+  assert.equal(screen.getByRole("menuitemradio", { name: "自动" }).getAttribute("aria-checked"), "true");
+  await user.keyboard("{Home}{ArrowDown}{Enter}");
+  assert.equal(selected, "dark");
+  assert.equal(screen.queryByRole("menu"), null);
+  await user.click(trigger);
+  await user.keyboard("{Escape}");
+  assert.equal(screen.queryByRole("menu"), null);
+  assert.equal(document.activeElement, trigger);
+  await user.click(trigger);
+  await user.click(screen.getByRole("button", { name: "外部操作" }));
+  assert.equal(screen.queryByRole("menu"), null);
+  await user.click(trigger);
+  fireEvent.wheel(document.body);
+  assert.equal(screen.queryByRole("menu"), null);
+});
+
+async function withDetectionFixture(options, exercise) {
+  const previous = window.__TAURI_INTERNALS__;
+  const previousEvents = window.__TAURI_EVENT_PLUGIN_INTERNALS__;
+  const callbacks = new Map();
+  const listeners = new Map();
+  let seq = 0, refreshes = 0;
+  const snapshot = {
+    schemaVersion: 1, refreshedAt: 1, stale: false, durationMs: 1,
+    homebrew: { available: true, prefix: "/fixture", version: "fixture", error: null },
+    instances: [{ ...instance("python"), health: "broken", path: "/fixture/python" }], errors: []
+  };
+  window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };
+  window.__TAURI_INTERNALS__ = {
+    transformCallback(callback) { callbacks.set(++seq, callback); return seq; },
+    async invoke(command, args) {
+      if (command === "plugin:event|listen") { listeners.set(args.event, args.handler); return args.handler; }
+      if (command === "get_detection_snapshot") return options.missing ? null : snapshot;
+      if (command === "refresh_detection") {
+        refreshes++;
+        if (!options.missing) queueMicrotask(() => callbacks.get(listeners.get("detection://updated"))?.({ payload: { ...snapshot, refreshedAt: refreshes + 1 }, id: 1, event: "detection://updated" }));
+        return true;
+      }
+      if (command === "get_installed_packages") {
+        if (options.missing || (options.failOnRefresh && refreshes > 1)) throw new Error("fixture query failed");
+        return { formulae: [{ package: "memcached", version: "1.6.fixture", path: "/fixture/memcached" }], casks: [] };
+      }
+      if (command === "search_homebrew") return [];
+      return null;
+    }
+  };
+  try {
+    const { default: App } = await import("../src/App.tsx");
+    render(React.createElement(App));
+    await exercise(userEvent.setup());
+  } finally {
+    cleanup();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    window.__TAURI_INTERNALS__ = previous;
+    window.__TAURI_EVENT_PLUGIN_INTERNALS__ = previousEvents;
+  }
+}
+
+test("sidebar combines verified package and non-Homebrew installs with keyword and category filters", async () => {
+  await withDetectionFixture({}, async user => {
+    await waitFor(() => assert.equal(screen.getByLabelText("未安装数量").textContent, "98"));
+    await user.click(screen.getByRole("button", { name: /^已安装/ }));
+    assert.equal(document.querySelectorAll(".orb").length, 2);
+    assert.ok(screen.getByRole("button", { name: "Python" }));
+    assert.ok(screen.getByRole("button", { name: "Memcached" }));
+    await user.click(screen.getByRole("button", { name: "数据库与服务" }));
+    assert.equal(document.querySelectorAll(".orb").length, 1);
+    await user.click(screen.getByRole("button", { name: "搜索软件" }));
+    await user.type(screen.getByRole("textbox", { name: "搜索软件" }), "python");
+    assert.ok(screen.getByRole("button", { name: "Python" }));
+    await user.click(screen.getByRole("button", { name: /^未安装/ }));
+    assert.equal(document.querySelectorAll(".orb").length, 0);
+    assert.equal(screen.queryByRole("textbox"), null);
+    assert.ok(screen.getByRole("button", { name: "清除关键词" }));
+    await user.click(screen.getByRole("button", { name: /^全部软件/ }));
+    assert.ok(screen.getByRole("button", { name: "Python" }));
+    await user.click(screen.getByRole("button", { name: "清除关键词" }));
+    await user.click(screen.getByRole("button", { name: "全部", exact: true }));
+    assert.equal(document.querySelectorAll(".orb").length, 100);
+  });
+});
+
+test("unknown installation state is not classified as 100 uninstalled applications", async () => {
+  await withDetectionFixture({ missing: true }, async user => {
+    await user.click(screen.getByRole("button", { name: /^未安装/ }));
+    assert.equal(document.querySelectorAll(".orb").length, 0);
+    assert.equal(screen.getByLabelText("未安装数量").textContent, "—");
+    assert.ok(screen.getByText(/暂不能确认未安装列表/));
+    await user.click(screen.getByRole("button", { name: /^全部软件/ }));
+    assert.equal(document.querySelectorAll(".orb").length, 100);
+  });
+});
+
+test("package query errors preserve positive evidence and never manufacture an uninstalled count", async () => {
+  await withDetectionFixture({ failOnRefresh: true }, async user => {
+    await waitFor(() => assert.equal(screen.getByLabelText("未安装数量").textContent, "98"));
+    await user.click(screen.getByRole("button", { name: "刷新检测" }));
+    await waitFor(() => assert.equal(screen.getByLabelText("未安装数量").textContent, "—"));
+    await user.click(screen.getByRole("button", { name: /^已安装/ }));
+    assert.ok(screen.getByRole("button", { name: "Memcached" }));
+    assert.ok(screen.getByRole("button", { name: "Python" }));
+    await user.click(screen.getByRole("button", { name: /^未安装/ }));
+    assert.equal(document.querySelectorAll(".orb").length, 0);
+  });
+});
+
+
+test("every curated software has a substantial introduction and concrete usage conditions", async () => {
+  const { softwareDescription } = await import("../src/lib/softwareDescriptions.ts");
+  for (const item of SOFTWARE) {
+    const description = softwareDescription(item);
+    assert.ok(description, `${item.id} has no introduction`);
+    assert.ok(description.purpose.length >= 80, `${item.id} reverted to a one-line introduction`);
+    assert.ok(description.uses.length > 0, `${item.id} has no use case`);
+    assert.ok(description.requirements.length > 0, `${item.id} has no usage condition`);
+    assert.ok(description.requirements.every(value => value.trim().length > 0));
+  }
 });
