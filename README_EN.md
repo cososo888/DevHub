@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/main-grid.png" alt="DevHub V2 software grid" width="860" />
+  <img src="docs/images/v0.2.0/library.jpg" alt="DevHub V2 software grid" width="860" />
 </p>
 
 <h1 align="center">DevHub V2</h1>
@@ -102,24 +102,25 @@ Every package name is verified against Homebrew; no invented package names.
 - Hidden page scrollbar while preserving wheel, trackpad and keyboard scrolling.
 - Color brand icons with category artwork for additional tools.
 
-## Screenshots
+## Screenshots from v0.2.0
+
+Searching for `redis` on the dedicated search page shows matches from the curated catalog and Homebrew in separate groups.
 
 <p align="center">
-  <img src="docs/images/main-grid.png" alt="100 curated packages" width="860" />
+  <img src="docs/images/v0.2.0/search.jpg" alt="Search results for redis grouped by source" width="860" />
 </p>
 
-<p align="center"><sub>100 curated packages across 8 categories</sub></p>
-
-| Homebrew search | Search result |
-| --- | --- |
-| <img src="docs/images/homebrew-search.png" alt="Homebrew search" width="420" /> | <img src="docs/images/search-detail.png" alt="Search result detail" width="420" /> |
-| Search `postman` in the Homebrew library | Results use the same detail card |
+Click the information button beside the software name to read its use cases and requirements.
 
 <p align="center">
-  <img src="docs/images/install-confirm.png" alt="Install confirmation" width="640" />
+  <img src="docs/images/v0.2.0/redis-details.jpg" alt="Redis details with use cases and requirements expanded" width="440" />
 </p>
 
-<p align="center"><sub>Fixed Homebrew command shown before install</sub></p>
+Selecting Install shows the exact command for confirmation.
+
+<p align="center">
+  <img src="docs/images/v0.2.0/install-confirmation.jpg" alt="Redis installation command with Confirm and Cancel buttons" width="440" />
+</p>
 
 ## Tech Stack
 

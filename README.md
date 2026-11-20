@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/main-grid.png" alt="DevHub V2 软件网格" width="860" />
+  <img src="docs/images/v0.2.0/library.jpg" alt="DevHub V2 软件网格" width="860" />
 </p>
 
 <h1 align="center">DevHub V2</h1>
@@ -112,24 +112,25 @@ DevHub V2 是一个 **Tauri 2 + React + Rust** 的桌面应用，用来查看和
 - 隐藏页面滚动条，保留滚轮/触控板/键盘滚动；
 - 本地图标保留品牌颜色，未知软件使用通用图标。
 
-## 界面展示
+## v0.2.0 界面实拍
+
+在独立搜索页输入 `redis`，可以同时看到精选软件和 Homebrew 软件库结果。
 
 <p align="center">
-  <img src="docs/images/main-grid.png" alt="100 款精选软件与分类" width="860" />
+  <img src="docs/images/v0.2.0/search.jpg" alt="搜索 redis，精选结果与 Homebrew 结果分组显示" width="860" />
 </p>
 
-<p align="center"><sub>100 款精选软件与 8 个分类</sub></p>
-
-| Homebrew 全库搜索 | 搜索结果详情 |
-| --- | --- |
-| <img src="docs/images/homebrew-search.png" alt="Homebrew 全库搜索" width="420" /> | <img src="docs/images/search-detail.png" alt="搜索结果详情" width="420" /> |
-| 搜索 `postman`，结果来自 Homebrew 全库 | 搜索结果进入统一详情卡片 |
+点详情标题旁的感叹号，可以展开软件用途和使用条件。
 
 <p align="center">
-  <img src="docs/images/install-confirm.png" alt="安装确认" width="640" />
+  <img src="docs/images/v0.2.0/redis-details.jpg" alt="Redis 详情中展开的用途和使用条件" width="440" />
 </p>
 
-<p align="center"><sub>安装前显示固定 Homebrew 命令，确认前不会执行</sub></p>
+点「安装」会先显示将执行的命令，可以确认或取消。
+
+<p align="center">
+  <img src="docs/images/v0.2.0/install-confirmation.jpg" alt="安装 Redis 前的命令确认" width="440" />
+</p>
 
 ## 技术栈
 
