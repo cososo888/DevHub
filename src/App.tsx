@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { SOFTWARE } from "./catalog";
 import type { Software } from "./catalog";
 import { DetailOverlay } from "./components/DetailOverlay";
@@ -8,12 +8,15 @@ import { InstallationSidebar } from "./components/InstallationSidebar";
 import type { InstallationFilter } from "./components/InstallationSidebar";
 import { Toolbar } from "./components/Toolbar";
 import { WindowChrome } from "./components/WindowChrome";
+import { SearchPage, SearchToolbar } from "./components/SearchPage";
+import { InstallationNotice } from "./components/InstallationNotice";
+import { useSoftwareSearch } from "./hooks/useSoftwareSearch";
 import { useDetection } from "./hooks/useDetection";
 import { useInstallTask } from "./hooks/useInstallTask";
 import { useTheme } from "./hooks/useTheme";
 import { desktop } from "./lib/ipc";
 import { filterCurated } from "./lib/catalogFilter";
-import type { HomebrewResult, InstalledPackages, PackageKind, PackageVersion, SoftwareInstance } from "./lib/ipc";
+import type { InstalledPackages, PackageKind, PackageVersion, SoftwareInstance } from "./lib/ipc";
 
 function formatUpdated(value: number | null | undefined) {
   if (!value) return "尚未检测";
@@ -24,22 +27,6 @@ function packageKey(kind: PackageKind, packageName: string) {
   return `${kind}:${packageName}`;
 }
 
-function remoteSoftware(result: HomebrewResult): Software {
-  const safe = result.package.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "");
-  return {
-    id: `brew-${result.kind}-${safe}`,
-    name: result.name || result.package,
-    category: "Homebrew 搜索",
-    description: result.description || "Homebrew 软件包",
-    popularity: 0,
-    accent: "#6B7280",
-    source: result.kind === "cask" ? "Homebrew cask" : "Homebrew formula",
-    stage: "planned",
-    package: result.package,
-    kind: result.kind
-  };
-}
-
 export default function App() {
   const { theme, setTheme } = useTheme();
   const { snapshot, refreshing, error, refresh } = useDetection();
@@ -48,15 +35,27 @@ export default function App() {
   const [installationFilter, setInstallationFilter] = useState<InstallationFilter>("all");
   const [packagesStatus, setPackagesStatus] = useState<"loading" | "ready" | "error">("loading");
   const [category, setCategory] = useState("全部");
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [page, setPage] = useState<"library" | "search">("library");
   const [selected, setSelected] = useState<{ item: Software; origin: OrbOrigin } | null>(null);
   const [packages, setPackages] = useState<InstalledPackages>({ formulae: [], casks: [] });
-  const [remote, setRemote] = useState<HomebrewResult[]>([]);
-  const [remoteQuery, setRemoteQuery] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [searchRetry, setSearchRetry] = useState(0);
-  const searchCache = useRef(new Map<string, HomebrewResult[]>());
+  const search = useSoftwareSearch(query, page === "search");
+  const scrollPositions = useRef({ library: 0, search: 0 });
+  const navigate = useCallback((next: "library" | "search") => {
+    if (next === page) return;
+    scrollPositions.current[page] = window.scrollY;
+    setSelected(null);
+    setPage(next);
+  }, [page]);
+
+  useLayoutEffect(() => { window.scrollTo(0, scrollPositions.current[page]); }, [page]);
+  useEffect(() => {
+    if (page !== "search" || selected) return;
+    const back = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); navigate("library"); }
+    };
+    window.addEventListener("keydown", back);
+    return () => window.removeEventListener("keydown", back);
+  }, [page, selected, navigate]);
 
   useEffect(() => {
     let live = true;
@@ -66,40 +65,6 @@ export default function App() {
       .catch(() => { if (live) setPackagesStatus("error"); });
     return () => { live = false; };
   }, [snapshot?.refreshedAt, install.result?.jobId]);
-
-  useEffect(() => {
-    const text = query.trim();
-    if (text.length < 2) {
-      setRemote([]);
-      setSearching(false);
-      setSearchError(null);
-      return;
-    }
-    const key = text.toLowerCase();
-    const cached = searchCache.current.get(key);
-    if (cached) {
-      setRemote(cached);
-      setRemoteQuery(key);
-      setSearching(false);
-      setSearchError(null);
-      return;
-    }
-    let active = true;
-    setSearching(true);
-    setSearchError(null);
-    const timer = window.setTimeout(() => {
-      desktop<HomebrewResult[]>("search_homebrew", { query: text })
-        .then(results => {
-          if (!active) return;
-          searchCache.current.set(key, results);
-          setRemote(results);
-          setRemoteQuery(key);
-        })
-        .catch(value => { if (active) { setRemote([]); setSearchError(String(value)); } })
-        .finally(() => { if (active) setSearching(false); });
-    }, 320);
-    return () => { active = false; window.clearTimeout(timer); };
-  }, [query, searchRetry]);
 
   const instancesBySoftware = useMemo(() => {
     const map = new Map<string, SoftwareInstance[]>();
@@ -131,26 +96,8 @@ export default function App() {
 
   const isInstalled = (item: Software) => (instancesBySoftware.get(item.id) ?? []).some(instance => item.kind !== "cask" || instance.kind === "app") || brewMap.has(packageKey(item.kind, item.package));
 
-  const globalSearch = query.trim().length >= 2;
-  const curated = useMemo(() => {
-    return filterCurated(SOFTWARE, query, category)
-      .sort((a, b) => b.popularity - a.popularity);
-  }, [category, query]);
-
-  const remoteItems = useMemo(() => {
-    if (query.trim().length < 2 || remoteQuery !== query.trim().toLowerCase()) return [];
-    const seen = new Set(SOFTWARE.map(item => packageKey(item.kind, item.package)));
-    const values: Software[] = [];
-    for (const result of remote) {
-      const key = packageKey(result.kind, result.package);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      values.push(remoteSoftware(result));
-    }
-    return values.sort((a, b) => a.name.localeCompare(b.name));
-  }, [query, remote, remoteQuery]);
-
-  const candidates = useMemo(() => [...curated, ...remoteItems], [curated, remoteItems]);
+  const candidates = useMemo(() => filterCurated(SOFTWARE, "", category)
+    .sort((a, b) => b.popularity - a.popularity), [category]);
   // Absence is meaningful only after both current detection and package queries succeeded.
   const absenceConfirmed = Boolean(snapshot && !snapshot.stale && !refreshing && !error
     && snapshot.errors.length === 0 && packagesStatus === "ready");
@@ -164,7 +111,6 @@ export default function App() {
       : refreshing || packagesStatus === "loading" ? "正在核对安装状态…" : "检测结果尚未确认，请刷新检测。"
     : null;
   const installedIds = useMemo(() => new Set(items.filter(isInstalled).map(item => item.id)), [items, instancesBySoftware, brewMap]);
-  const searchCount = remoteItems.length;
   const selectedInstances = selected ? (instancesBySoftware.get(selected.item.id) ?? []).filter(instance => selected.item.kind !== "cask" || instance.kind === "app") : [];
   const selectedBrew = selected ? brewMap.get(packageKey(selected.item.kind, selected.item.package)) ?? null : null;
   const busyIds = useMemo(() => {
@@ -185,18 +131,11 @@ export default function App() {
     <div className="app" data-theme={theme}>
       <div className="ambient" aria-hidden="true" />
       <WindowChrome>
-      <Toolbar
-        query={query}
-        onQuery={setQuery}
-        category={category}
-        onCategory={setCategory}
-        searchOpen={searchOpen}
-        onSearchToggle={() => setSearchOpen(open => !open)}
-        theme={theme}
-        onTheme={setTheme}
-      />
+        {page === "library"
+          ? <Toolbar category={category} onCategory={setCategory} onSearch={() => navigate("search")} theme={theme} onTheme={setTheme}/>
+          : <SearchToolbar query={query} onQuery={setQuery} onBack={() => navigate("library")} onSearch={search.retry} theme={theme} onTheme={setTheme}/>}
       </WindowChrome>
-      <div className="workspace">
+      <div className="workspace" hidden={page !== "library"}>
       <InstallationSidebar value={installationFilter} onChange={setInstallationFilter} counts={counts} />
       <div className="content-pane">
       <main className="main">
@@ -223,23 +162,17 @@ export default function App() {
             <button type="button" onClick={() => void refresh()}>重新检查</button>
           </div>
         )}
-        {globalSearch && (
-          <div className="search-status" role="status">
-            {searching
-              ? `正在搜索“${query.trim()}”…`
-              : searchError
-                ? <><span>Homebrew 搜索失败：{searchError}</span><button type="button" onClick={() => setSearchRetry(value => value + 1)}>重试</button></>
-                : <span>“{query.trim()}” · 精选 {curated.length} 款 · 更多软件 {searchCount} 款</span>}
-            <button type="button" onClick={() => setQuery("")}>清除关键词</button>
-          </div>
-        )}
         {filterNotice && <p className="detection-line" role="status">{filterNotice}</p>}
         {items.length > 0
           ? <OrbGrid items={items} installed={installedIds} installing={busyIds} sourceId={selected?.item.id ?? null} onOpen={(item, origin) => setSelected({ item, origin })} />
-          : !filterNotice && <div className="empty">{searching ? "正在搜索…" : installationFilter === "installed" ? "当前范围内没有已安装的软件。" : installationFilter === "not-installed" ? "当前检测范围内没有未安装的软件。" : "没有匹配的软件。"}</div>}
+          : !filterNotice && <div className="empty">{installationFilter === "installed" ? "当前范围内没有已安装的软件。" : installationFilter === "not-installed" ? "当前检测范围内没有未安装的软件。" : "没有匹配的软件。"}</div>}
       </main>
       </div>
       </div>
+      {page === "search" && <SearchPage query={query} curated={search.curated} remote={search.remote} searching={search.searching} error={search.error}
+        onQuery={setQuery} onRetry={search.retry} isInstalled={isInstalled} isBusy={item => install.task?.softwareId === item.package}
+        sourceId={selected?.item.id ?? null} onOpen={(item, origin) => setSelected({ item, origin })}/>}
+      <InstallationNotice result={install.result}/>
       {selected && (
         <DetailOverlay
           item={selected.item}

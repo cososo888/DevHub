@@ -1,6 +1,7 @@
 mod detection;
 mod desktop;
 mod homebrew;
+mod notifications;
 mod process;
 mod storage;
 
@@ -270,7 +271,6 @@ fn start_package_uninstall(app: AppHandle, state: State<AppState>, package: Stri
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
-        .plugin(tauri_plugin_notification::init())
         .on_window_event(desktop::on_window_event)
         .setup(|app| {
             desktop::setup(app)?;
@@ -280,6 +280,10 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            notifications::get_notification_status,
+            notifications::request_notification_permission,
+            notifications::send_test_notification,
+            notifications::open_notification_settings,
             get_app_status,
             get_detection_snapshot,
             get_installed_packages,

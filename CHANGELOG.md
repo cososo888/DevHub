@@ -4,6 +4,19 @@ All notable changes to DevHub V2 are documented here.
 
 ## [Unreleased]
 
+### Independent search, blue halos and native notifications
+
+- Replace the installed software's hard rings with soft, layered blue light in light, dark and automatic appearance.
+- Open a dedicated global search page from the existing magnifier; separate curated matches from Homebrew results in readable rows.
+- Keep library categories, installation filters and scroll position independent; preserve search keywords/results on return and debounce/cache requests without stale cross-query results.
+- Replace the legacy macOS notification backend with UserNotifications, real permission/status queries, foreground presentation and click-to-reopen handling.
+- Add notification enable/test/settings controls and report native submission errors instead of assuming notifications were delivered.
+- Request optional notification consent after an install confirmation; verified installs also leave an in-app completion notice.
+- Use macOS 11+ as the minimum, matching the Apple Silicon target and native banner API.
+- Update existing UI test cases for the separate search destination; tests are not run, in accordance with user-led testing.
+- Frontend/TypeScript, Rust compilation, UI test-script syntax and the debug macOS app bundle build passed. Automated tests and native interaction/delivery acceptance remain user-led.
+- No real software installation/uninstallation, notification submission or native UI validation performed during development.
+
 ### Seamless macOS window chrome
 
 - Replace the separate system title strip with a transparent overlay, hide its title and keep the native traffic-light buttons.

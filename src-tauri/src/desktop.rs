@@ -1,7 +1,6 @@
 //! Desktop lifetime and backend-owned completion notifications.
 //! Closing the main window keeps its webview and in-flight work alive; quitting is untouched.
 use tauri::{App, AppHandle, Manager, RunEvent, Window, WindowEvent};
-use tauri_plugin_notification::NotificationExt;
 
 pub(crate) fn show_main(app: &AppHandle) {
     #[cfg(target_os = "macos")]
@@ -19,13 +18,7 @@ pub(crate) fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(target_os = "macos")]
     app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
-    let handle = app.handle().clone();
-    app.notification().on_action(move |_| {
-        let to_show = handle.clone();
-        if let Err(error) = handle.run_on_main_thread(move || show_main(&to_show)) {
-            eprintln!("DevHub could not handle a notification click: {error}");
-        }
-    })?;
+    crate::notifications::setup(app);
     Ok(())
 }
 
@@ -55,12 +48,5 @@ pub(crate) fn on_run_event(app: &AppHandle, event: &RunEvent) {
 
 /// Called once from the verified install-success path, never from frontend progress events.
 pub(crate) fn installation_complete(app: &AppHandle, package: &str) {
-    if let Err(error) = app.notification().builder()
-        .title("安装完成")
-        .body(format!("{package} 已安装成功"))
-        .show()
-    {
-        // Notification delivery is best effort and must not turn a successful install into failure.
-        eprintln!("DevHub could not submit the completion notification: {error}");
-    }
+    crate::notifications::installation_complete(app, package);
 }

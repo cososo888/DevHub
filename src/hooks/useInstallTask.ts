@@ -37,6 +37,9 @@ export function useInstallTask() {
     setResult(null);
     setTask({ jobId: 0, softwareId: packageName, version: packageName, action, stage: "starting", message: action === "install" ? "正在提交安装…" : "正在提交卸载…", percent: null });
     try {
+      // Ask in context after the user's install confirmation. Consent is optional;
+      // denial or an unavailable notification service never prevents installation.
+      if (action === "install") await desktop("request_notification_permission").catch(() => null);
       await desktop<number>(action === "install" ? "start_package_install" : "start_package_uninstall", { package: packageName, kind });
     } catch (value) {
       setTask(null);

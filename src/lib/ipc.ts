@@ -104,3 +104,10 @@ export interface InstallFinished {
   output: string;
   verification: Verification | null;
 }
+
+export interface NotificationStatus {
+  permission: "notDetermined" | "granted" | "denied" | "unavailable";
+  alertsEnabled: boolean;
+  bannersEnabled: boolean;
+  lastError: string | null;
+}

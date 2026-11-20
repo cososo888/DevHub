@@ -15,6 +15,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 globalThis.__REDUCE__ = false;
 globalThis.requestAnimationFrame = callback => setTimeout(() => callback(Date.now()), 0);
 globalThis.cancelAnimationFrame = id => clearTimeout(id);
+window.scrollTo = () => {};
 Object.defineProperty(window, "matchMedia", {
   configurable: true,
   value: query => ({
@@ -114,41 +115,28 @@ test("the source orb is hidden while its card is open", () => {
   assert.equal(node.tabIndex, -1);
 });
 
-test("toolbar expands search, filters categories, clears on close and exposes themes", async () => {
+test("toolbar opens a dedicated search destination and keeps categories and themes in the library", async () => {
+  let opened = 0;
   function Harness() {
-    const [query, setQuery] = React.useState("");
     const [category, setCategory] = React.useState("全部");
-    const [searchOpen, setSearchOpen] = React.useState(false);
     const [theme, setTheme] = React.useState("system");
     return React.createElement(React.Fragment, null,
-      React.createElement(Toolbar, { query, onQuery: setQuery, category, onCategory: setCategory, searchOpen, onSearchToggle: () => setSearchOpen(value => !value), theme, onTheme: setTheme }),
-      React.createElement("output", { "data-testid": "state" }, `${query}|${category}|${theme}`)
+      React.createElement(Toolbar, { category, onCategory: setCategory, onSearch: () => { opened++; }, theme, onTheme: setTheme }),
+      React.createElement("output", { "data-testid": "state" }, `${category}|${theme}`)
     );
   }
   render(React.createElement(Harness));
   const user = userEvent.setup();
-  assert.equal(screen.queryByRole("textbox"), null);
-  await user.click(screen.getByRole("button", { name: "搜索软件" }));
-  const input = await screen.findByRole("textbox", { name: "搜索软件" });
-  await user.type(input, "node");
-  assert.equal(screen.getByTestId("state").textContent, "node|全部|system");
-  await user.click(screen.getByRole("button", { name: "清空搜索" }));
-  assert.equal(screen.getByTestId("state").textContent, "|全部|system");
-  assert.equal(document.activeElement, input);
-  assert.ok(screen.getByRole("textbox", { name: "搜索软件" }));
-  await user.type(input, "node");
+  assert.equal(screen.queryByRole("searchbox"), null);
+  await user.click(screen.getByRole("button", { name: "全局搜索" }));
+  assert.equal(opened, 1);
+  assert.equal(screen.queryByRole("searchbox"), null);
   await user.click(screen.getByRole("button", { name: "开发工具" }));
   assert.equal(screen.getByRole("button", { name: "开发工具" }).getAttribute("aria-pressed"), "true");
-  assert.equal(screen.queryByRole("textbox"), null);
-  assert.equal(screen.queryByRole("menu"), null);
   await user.click(screen.getByRole("button", { name: "外观设置" }));
   await user.click(screen.getByRole("menuitemradio", { name: "夜间" }));
   assert.equal(screen.queryByRole("menu"), null);
-  assert.equal(screen.getByTestId("state").textContent, "node|开发工具|dark");
-  await user.click(screen.getByRole("button", { name: "搜索软件" }));
-  await user.click(screen.getByRole("button", { name: "收起搜索" }));
-  assert.equal(screen.queryByRole("textbox"), null);
-  assert.equal(screen.getByTestId("state").textContent, "|开发工具|dark");
+  assert.equal(screen.getByTestId("state").textContent, "开发工具|dark");
 });
 
 test("anchored geometry keeps the orb as a corner and stays inside the viewport", () => {
@@ -295,15 +283,15 @@ test("reduced motion opens the card at its final geometry and closes without wai
   await waitFor(() => assert.equal(closed, 1));
 });
 
-test("app starts with the full grid, filters by search, and never fabricates installed state", async () => {
+test("app isolates global search from its library and never fabricates installed state", async () => {
   const { default: App } = await import("../src/App.tsx");
   render(React.createElement(App));
   await waitFor(() => assert.ok(document.querySelector(".orb-grid")));
   assert.equal(screen.queryByText("选择你的开发工具"), null);
   assert.equal(screen.getAllByRole("button").filter(button => button.getAttribute("aria-label") && SOFTWARE.some(item => item.name === button.getAttribute("aria-label"))).length, 100);
   const user = userEvent.setup();
-  await user.click(screen.getByRole("button", { name: "搜索软件" }));
-  await user.type(await screen.findByRole("textbox", { name: "搜索软件" }), "git");
+  await user.click(screen.getByRole("button", { name: "全局搜索" }));
+  await user.type(await screen.findByRole("searchbox", { name: "搜索全部软件" }), "git");
   await waitFor(() => assert.equal(screen.queryByRole("button", { name: "Python" }), null));
   assert.ok(screen.getByRole("button", { name: "Git" }));
   assert.equal(document.querySelectorAll(".orb.is-installed").length, 0);
@@ -330,8 +318,8 @@ test("changing the search hides previous remote results before the next request 
     const { default: App } = await import("../src/App.tsx");
     render(React.createElement(App));
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "搜索软件" }));
-    const input = screen.getByRole("textbox", { name: "搜索软件" });
+    await user.click(screen.getByRole("button", { name: "全局搜索" }));
+    const input = screen.getByRole("searchbox", { name: "搜索全部软件" });
     await user.type(input, "fixture");
     await screen.findByRole("button", { name: "RemoteFixture" });
     await user.click(screen.getByRole("button", { name: "清空搜索" }));
@@ -381,16 +369,24 @@ test("detail keeps the source radius and toggles introduction only on click with
   assert.equal(screen.queryByRole("region", { name: "软件详细介绍" }), null);
 });
 
-test("opening a software dismisses search without losing the selected detail", async () => {
+test("search details preserve the query and returning restores the unfiltered library", async () => {
+  globalThis.__REDUCE__ = true;
   const { default: App } = await import("../src/App.tsx");
   render(React.createElement(App));
   const user = userEvent.setup();
-  assert.equal(document.querySelector(".brand"), null);
-  await user.click(screen.getByRole("button", { name: "搜索软件" }));
-  await user.type(screen.getByRole("textbox", { name: "搜索软件" }), "memcached");
+  await user.click(screen.getByRole("button", { name: "全局搜索" }));
+  const input = screen.getByRole("searchbox", { name: "搜索全部软件" });
+  await user.type(input, "memcached");
   await user.click(screen.getByRole("button", { name: "Memcached" }));
-  assert.equal(screen.queryByRole("textbox"), null);
+  assert.equal(input.value, "memcached");
   assert.ok(screen.getByRole("dialog", { name: "Memcached 详情" }));
+  await user.click(screen.getByRole("button", { name: "关闭详情" }));
+  assert.equal(screen.getByRole("searchbox", { name: "搜索全部软件" }).value, "memcached");
+  await user.click(screen.getByRole("button", { name: "返回软件库" }));
+  assert.ok(screen.getByRole("button", { name: "Python" }));
+  assert.equal(screen.queryByRole("searchbox"), null);
+  await user.click(screen.getByRole("button", { name: "全局搜索" }));
+  assert.equal(screen.getByRole("searchbox", { name: "搜索全部软件" }).value, "memcached");
 });
 
 
@@ -516,7 +512,7 @@ async function withDetectionFixture(options, exercise) {
   }
 }
 
-test("sidebar combines verified package and non-Homebrew installs with keyword and category filters", async () => {
+test("library installation filters survive an independent global search", async () => {
   await withDetectionFixture({}, async user => {
     await waitFor(() => assert.equal(screen.getByLabelText("未安装数量").textContent, "98"));
     await user.click(screen.getByRole("button", { name: /^已安装/ }));
@@ -525,16 +521,16 @@ test("sidebar combines verified package and non-Homebrew installs with keyword a
     assert.ok(screen.getByRole("button", { name: "Memcached" }));
     await user.click(screen.getByRole("button", { name: "数据库与服务" }));
     assert.equal(document.querySelectorAll(".orb").length, 1);
-    await user.click(screen.getByRole("button", { name: "搜索软件" }));
-    await user.type(screen.getByRole("textbox", { name: "搜索软件" }), "python");
-    assert.ok(screen.getByRole("button", { name: "Python" }));
-    await user.click(screen.getByRole("button", { name: /^未安装/ }));
-    assert.equal(document.querySelectorAll(".orb").length, 0);
-    assert.equal(screen.queryByRole("textbox"), null);
-    assert.ok(screen.getByRole("button", { name: "清除关键词" }));
+    await user.click(screen.getByRole("button", { name: "全局搜索" }));
+    await user.type(screen.getByRole("searchbox", { name: "搜索全部软件" }), "python");
+    assert.ok(screen.getByRole("button", { name: "Python，已安装" }));
+    assert.equal(screen.queryByRole("navigation", { name: "安装状态筛选" }), null);
+    await user.click(screen.getByRole("button", { name: "返回软件库" }));
+    assert.equal(screen.getByRole("button", { name: /^已安装/ }).getAttribute("aria-pressed"), "true");
+    assert.equal(screen.getByRole("button", { name: "数据库与服务" }).getAttribute("aria-pressed"), "true");
+    assert.ok(screen.getByRole("button", { name: "Memcached" }));
+    assert.equal(screen.queryByRole("button", { name: "Python" }), null);
     await user.click(screen.getByRole("button", { name: /^全部软件/ }));
-    assert.ok(screen.getByRole("button", { name: "Python" }));
-    await user.click(screen.getByRole("button", { name: "清除关键词" }));
     await user.click(screen.getByRole("button", { name: "全部", exact: true }));
     assert.equal(document.querySelectorAll(".orb").length, 100);
   });
