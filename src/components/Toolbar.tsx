@@ -19,6 +19,20 @@ export function Toolbar({ query, onQuery, category, onCategory, searchOpen, onSe
   onTheme: (value: Theme) => void;
 }) {
   const input = useRef<HTMLInputElement>(null);
+  const search = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!searchOpen) return;
+    const dismiss = (event: Event) => {
+      if (event.target instanceof Node && search.current?.contains(event.target)) return;
+      onQuery(""); onSearchToggle();
+    };
+    document.addEventListener("click", dismiss);
+    document.addEventListener("wheel", dismiss, { passive: true });
+    return () => {
+      document.removeEventListener("click", dismiss);
+      document.removeEventListener("wheel", dismiss);
+    };
+  }, [searchOpen, onQuery, onSearchToggle]);
   useEffect(() => {
     if (searchOpen) input.current?.focus();
   }, [searchOpen]);
@@ -30,17 +44,13 @@ export function Toolbar({ query, onQuery, category, onCategory, searchOpen, onSe
 
   return (
     <header className="topbar">
-      <div className="brand">
-        <span className="brand-mark" aria-hidden="true">D</span>
-        <span className="brand-copy"><strong>DevHub</strong><small>V2 · 开发环境</small></span>
-      </div>
       <nav className="categories" aria-label="软件分类" title={query.trim().length >= 2 ? "搜索期间显示全部分类的结果；清空搜索后恢复所选分类" : "选择软件分类"}>
         {["全部", ...CATEGORIES].map(value => (
           <button key={value} type="button" className={`chip${category === value ? " active" : ""}`} aria-pressed={category === value} onClick={() => onCategory(value)}>{value}</button>
         ))}
       </nav>
       <div className="toolbar-right">
-        <div className={`search${searchOpen ? " open" : ""}`}>
+        <div ref={search} className={`search${searchOpen ? " open" : ""}`}>
           {searchOpen && <input ref={input} aria-label="搜索软件" placeholder="搜索名称或包名…" value={query} onChange={event => onQuery(event.target.value)} onKeyDown={event => { if (event.key === "Escape") toggleSearch(); }} />}
           {searchOpen && query && <button type="button" className="icon-button" aria-label="清空搜索" title="清空搜索，恢复分类" onClick={() => { onQuery(""); input.current?.focus(); }}>×</button>}
           <button type="button" className="icon-button" aria-label={searchOpen ? "收起搜索" : "搜索软件"} title={searchOpen ? "收起搜索" : "搜索"} onClick={toggleSearch}>

@@ -131,7 +131,7 @@ export default function App() {
   const globalSearch = query.trim().length >= 2;
   const curated = useMemo(() => {
     return filterCurated(SOFTWARE, query, category)
-      .sort((a, b) => Number(isInstalled(b)) - Number(isInstalled(a)) || b.popularity - a.popularity);
+      .sort((a, b) => b.popularity - a.popularity);
   }, [category, query, instancesBySoftware, brewMap]);
 
   const remoteItems = useMemo(() => {

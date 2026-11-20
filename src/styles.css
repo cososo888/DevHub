@@ -510,3 +510,29 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, #root::-webkit-scrollbar,
   height: 0;
   display: none;
 }
+
+/* The expanded surface keeps the orb's tint, light and physical corner radius. */
+.morph-card, .morph-card.open, .morph-card.closing {
+  background: radial-gradient(ellipse at 18% 8%, color-mix(in srgb, var(--orb-accent) 30%, transparent), transparent 72%),
+    linear-gradient(140deg, color-mix(in srgb, var(--orb-surface) 88%, transparent), color-mix(in srgb, var(--orb-accent) 14%, var(--orb-surface)));
+  backdrop-filter: blur(30px) saturate(1.45);
+  -webkit-backdrop-filter: blur(30px) saturate(1.45);
+  border-color: color-mix(in srgb, var(--orb-accent) 24%, var(--line));
+  box-shadow: inset 0 1px 1px #ffffff70, var(--card-shadow);
+}
+.morph-card.open::before { opacity: .35; }
+.detail-inner { padding: 34px; scroll-padding: 34px; }
+.detail-head { position: relative; }
+.description-toggle { display: inline-grid; place-items: center; width: 28px; height: 28px; margin-top: 6px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--muted); }
+.description-toggle:hover, .description-toggle[aria-expanded="true"] { color: var(--text); border-color: var(--orb-accent); }
+.software-description { margin-top: 14px; padding: 14px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); font-size: 12px; line-height: 1.75; overflow-wrap: anywhere; }
+.software-description h3 { margin: 0 0 8px; font-size: 14px; }
+.software-description p { margin: 8px 0; }
+.software-description dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
+.software-description dt { color: var(--muted); }
+.software-description dd { margin: 0; }
+.detail-close { top: 20px; right: 20px; }
+
+.brand-logo { object-fit: contain; opacity: .88; }
+.app[data-theme="dark"] .brand-logo { filter: invert(1); }
+@media (prefers-color-scheme: dark) { .app[data-theme="system"] .brand-logo { filter: invert(1); } }

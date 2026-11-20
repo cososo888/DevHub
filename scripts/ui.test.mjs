@@ -141,7 +141,8 @@ test("toolbar expands search, filters categories, clears on close and exposes th
   assert.equal(screen.getByRole("button", { name: "开发工具" }).getAttribute("aria-pressed"), "true");
   await user.click(screen.getByRole("button", { name: "深色" }));
   assert.equal(screen.getByRole("button", { name: "深色" }).getAttribute("aria-pressed"), "true");
-  assert.equal(screen.getByTestId("state").textContent, "node|开发工具|dark");
+  assert.equal(screen.getByTestId("state").textContent, "|开发工具|dark");
+  await user.click(screen.getByRole("button", { name: "搜索软件" }));
   await user.click(screen.getByRole("button", { name: "收起搜索" }));
   assert.equal(screen.queryByRole("textbox"), null);
   assert.equal(screen.getByTestId("state").textContent, "|开发工具|dark");
@@ -351,4 +352,34 @@ test("failure guidance distinguishes verification from network errors and preser
   assert.match(failureFeedback("failed", "curl: (6) Could not resolve host").summary, /网络/);
   assert.match(failureFeedback("检测命令执行超时").advice, /并不保证/);
   assert.equal(failureFeedback("private ".repeat(100)).summary.includes("private"), false);
+});
+
+
+test("detail keeps the source radius and its introduction can be pinned for scrolling", async () => {
+  globalThis.__REDUCE__ = true;
+  const item = SOFTWARE.find(item => item.id === "memcached");
+  render(React.createElement(DetailOverlay, { item, origin: { left: 30, top: 30, width: 100, height: 100 }, onClose() {}, homebrewReady: true }));
+  const dialog = screen.getByRole("dialog", { name: "Memcached 详情" });
+  assert.equal(dialog.style.borderRadius, "50px");
+  const info = screen.getByRole("button", { name: "详细介绍" });
+  const user = userEvent.setup();
+  await user.hover(info);
+  assert.ok(screen.getByRole("region", { name: "软件详细介绍" }));
+  await user.click(info);
+  await user.unhover(info);
+  assert.ok(screen.getByRole("region", { name: "软件详细介绍" }));
+  await user.click(info);
+  assert.equal(screen.queryByRole("region", { name: "软件详细介绍" }), null);
+});
+
+test("opening a software dismisses search without losing the selected detail", async () => {
+  const { default: App } = await import("../src/App.tsx");
+  render(React.createElement(App));
+  const user = userEvent.setup();
+  assert.equal(document.querySelector(".brand"), null);
+  await user.click(screen.getByRole("button", { name: "搜索软件" }));
+  await user.type(screen.getByRole("textbox", { name: "搜索软件" }), "memcached");
+  await user.click(screen.getByRole("button", { name: "Memcached" }));
+  assert.equal(screen.queryByRole("textbox"), null);
+  assert.ok(screen.getByRole("dialog", { name: "Memcached 详情" }));
 });

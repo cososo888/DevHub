@@ -19,7 +19,7 @@ type Confirm = "install" | "uninstall" | null;
 const CARD_WIDTH = 380;
 const CARD_MIN_HEIGHT = 140;
 const PAGE_PADDING = 16;
-const RADIUS = 24;
+
 const CLOSE_MS = 320;
 
 function clamp(value: number, min: number, max: number) {
@@ -45,7 +45,7 @@ export function anchoredCard(origin: OrbOrigin, width: number, height: number, v
   return { left, top, width: w, height: natural };
 }
 
-function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, homebrewReady, task, result, actionError, confirm, onConfirm, onInstall, onUninstall, interactive = false }: {
+function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, homebrewReady, task, result, actionError, confirm, onConfirm, onInstall, onUninstall, expanded, pinned, onExpanded, onPinned, interactive = false }: {
   item: Software;
   instances: SoftwareInstance[];
   brewInstalled: boolean;
@@ -59,6 +59,10 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, hom
   onConfirm: (value: Confirm) => void;
   onInstall: () => void;
   onUninstall: () => void;
+  expanded: boolean;
+  pinned: boolean;
+  onExpanded: (value: boolean) => void;
+  onPinned: (value: boolean) => void;
   interactive?: boolean;
 }) {
   const installed = instances.length > 0 || brewInstalled;
@@ -75,8 +79,18 @@ function DetailBody({ item, instances, brewInstalled, brewVersion, brewPath, hom
       <header className="detail-head">
         <h2>{item.name}</h2>
         <p>{item.description}</p>
+        <button type="button" className="description-toggle" aria-label="详细介绍" aria-expanded={expanded} onMouseEnter={() => onExpanded(true)} onMouseLeave={() => { if (!pinned) onExpanded(false); }} onFocus={() => onExpanded(true)} onClick={() => { onPinned(!pinned); onExpanded(!pinned); }}>
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.5"/><path d="M12 6.5v7M12 16.5v1" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+        </button>
       </header>
 
+      {expanded && <section className="software-description" aria-label="软件详细介绍">
+        <h3>关于 {item.name}</h3>
+        <p>{item.description}</p>
+        <dl><dt>软件包</dt><dd>{item.package}</dd><dt>发行渠道</dt><dd>{item.kind === "cask" ? "Homebrew Cask · 桌面应用" : "Homebrew Formula · 命令行工具"}</dd><dt>分类</dt><dd>{item.category}</dd></dl>
+        <p>由 Homebrew 提供当前版本。DevHub 会在操作前请求确认，安装结束后重新核对包状态。</p>
+        <p>检测到的已有安装可能来自系统、官网或其他工具；只有 Homebrew 管理的软件包提供卸载操作。</p>
+      </section>}
       <div className="env-summary">
         <span className={`env-state${installed ? " installed" : ""}`}>{installed ? "已安装" : "未安装"}</span>
         {brewInstalled && <span className="managed-note">Homebrew 管理</span>}
@@ -176,6 +190,8 @@ export function DetailOverlay({ item, origin, onClose, instances = [], brewInsta
   const [entered, setEntered] = useState(false);
   const [closing, setClosing] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [pinned, setPinned] = useState(false);
   const measure = useRef<HTMLDivElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const card = useRef<HTMLElement>(null);
@@ -206,7 +222,7 @@ export function DetailOverlay({ item, origin, onClose, instances = [], brewInsta
       second = requestAnimationFrame(() => setEntered(true));
     });
     return () => { cancelAnimationFrame(first); if (second) cancelAnimationFrame(second); };
-  }, [origin.left, origin.top, origin.width, origin.height, width, viewport.width, viewport.height, reduced, instanceSignature, task?.message, result, actionError, confirm, item.package, brewInstalled, brewVersion, brewPath, homebrewReady]);
+  }, [origin.left, origin.top, origin.width, origin.height, width, viewport.width, viewport.height, reduced, instanceSignature, task?.message, result, actionError, confirm, item.package, brewInstalled, brewVersion, brewPath, homebrewReady, expanded]);
 
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -231,15 +247,15 @@ export function DetailOverlay({ item, origin, onClose, instances = [], brewInsta
   useEffect(() => () => { if (timer.current !== null) window.clearTimeout(timer.current); }, []);
 
   const geometry: CSSProperties = entered
-    ? { left: target.left, top: target.top, width: target.width, height: target.height, borderRadius: RADIUS }
+    ? { left: target.left, top: target.top, width: target.width, height: target.height, borderRadius: Math.max(1, origin.width / 2) }
     : { left: origin.left, top: origin.top, width: origin.width, height: origin.height, borderRadius: Math.max(1, origin.width / 2) };
-  const body = <DetailBody item={item} instances={instances} brewInstalled={brewInstalled} brewVersion={brewVersion} brewPath={brewPath} homebrewReady={homebrewReady} task={task} result={result} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} interactive />;
+  const body = <DetailBody item={item} instances={instances} brewInstalled={brewInstalled} brewVersion={brewVersion} brewPath={brewPath} homebrewReady={homebrewReady} task={task} result={result} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} expanded={expanded} pinned={pinned} onExpanded={setExpanded} onPinned={setPinned} interactive />;
 
   return createPortal(
     <div className="detail-layer">
       <div className="detail-catcher" onClick={close} aria-hidden="true" />
       <div ref={measure} className="detail-measure" style={{ width }} aria-hidden="true">
-        <DetailBody item={item} instances={instances} brewInstalled={brewInstalled} brewVersion={brewVersion} brewPath={brewPath} homebrewReady={homebrewReady} task={task} result={result} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} />
+        <DetailBody item={item} instances={instances} brewInstalled={brewInstalled} brewVersion={brewVersion} brewPath={brewPath} homebrewReady={homebrewReady} task={task} result={result} actionError={actionError} confirm={confirm} onConfirm={setConfirm} onInstall={onInstall} onUninstall={onUninstall} expanded={expanded} pinned={pinned} onExpanded={setExpanded} onPinned={setPinned} />
       </div>
       <section ref={card} className={`morph-card${entered ? " open" : ""}${closing ? " closing" : ""}`} style={{ ...geometry, "--orb-accent": item.accent } as CSSProperties} role="dialog" aria-modal="true" aria-label={`${item.name} 详情`} onClick={event => event.stopPropagation()}>
         <span className="morph-logo" aria-hidden="true"><SoftwareLogo id={item.id} name={item.name} /></span>

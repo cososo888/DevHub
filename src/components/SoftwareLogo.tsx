@@ -1,3 +1,4 @@
+import { SOFTWARE_ICONS } from "../lib/softwareIcons";
 interface LogoProps {
   id: string;
   name: string;
@@ -7,7 +8,7 @@ const text = (value: string, fill = "#fff", size = 18) => (
   <text x="32" y="34" textAnchor="middle" dominantBaseline="central" fill={fill} fontSize={size} fontWeight={800} fontFamily="-apple-system, BlinkMacSystemFont, sans-serif">{value}</text>
 );
 
-export function SoftwareLogo({ id, name }: LogoProps) {
+export function SoftwareLogo({ id }: LogoProps) {
   switch (id) {
     case "node":
       return <svg viewBox="0 0 64 64" className="software-logo" aria-hidden="true"><path d="M32 6 56 20v24L32 58 8 44V20z" fill="#5FA04E" /><path d="M32 12 50 22v20L32 52 14 42V22z" fill="#1D3B1B" opacity=".22" />{text("JS")}</svg>;
@@ -39,6 +40,7 @@ export function SoftwareLogo({ id, name }: LogoProps) {
     case "intellij":
       return <svg viewBox="0 0 64 64" className="software-logo" aria-hidden="true"><rect x="8" y="8" width="48" height="48" rx="12" fill="#FE315D" /><rect x="14" y="44" width="26" height="5" rx="2" fill="#fff" opacity=".85" />{text("IJ", "#fff", 18)}</svg>;
     default:
-      return <svg viewBox="0 0 64 64" className="software-logo" aria-hidden="true"><circle cx="32" cy="32" r="26" fill="#DDE3EE" />{text(name.slice(0, 2), "#4A5568", 13)}</svg>;
+      if (SOFTWARE_ICONS.has(id)) return <img className="software-logo brand-logo" src={`/software-icons/${id}.svg`} alt="" draggable={false} />;
+      return <svg viewBox="0 0 64 64" className="software-logo" aria-hidden="true" data-placeholder="true"><rect x="10" y="12" width="44" height="40" rx="12" fill="none" stroke="currentColor" strokeWidth="3"/><path d="m21 25 8 7-8 7m14 0h9" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>;
   }
 }

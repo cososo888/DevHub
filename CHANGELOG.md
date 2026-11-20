@@ -4,6 +4,15 @@ All notable changes to DevHub V2 are documented here.
 
 ## [Unreleased]
 
+### macOS UI refinement
+
+- Dismiss search when selecting another control or scrolling outside it; remove the top-left brand block.
+- Keep grid order stable after installed state updates.
+- Preserve the source orb radius and tinted glass surface when expanding details.
+- Add hoverable, click-to-pin software information in the scrollable detail card.
+- Bundle Simple Icons artwork locally and replace remaining letter placeholders with tool glyphs.
+- Automated UI checks and debug app packaging cover these changes; visual/native interaction acceptance remains pending because preview tools were unavailable.
+
 ### macOS reliability and usability
 
 - Focus current development on macOS; pause the Windows plan and retain its documents as historical references.
